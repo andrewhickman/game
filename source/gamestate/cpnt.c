@@ -15,6 +15,7 @@ struct gs_cpnt_result gs_cpnt_create(size_t len, size_t size)
 	ret.value.data = malloc(len * size);
 	if (!ret.value.data) goto fail_data;
 
+	ret.result = RESULT_OK;
 	return ret;
 
 fail_data:
@@ -41,6 +42,6 @@ enum result gs_cpnt_insert(struct gs_cpnt *cpnt, size_t id, size_t size)
 
 void gs_cpnt_destroy(struct gs_cpnt cpnt)
 {
-	set_destroy(cpnt.entities);
 	free(cpnt.data);
+	set_destroy(cpnt.entities);
 }

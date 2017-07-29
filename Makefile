@@ -1,5 +1,5 @@
 OBJECTS := $(patsubst source/*.c, build/*.o, $(wildcard source/*.c) $(wildcard source/**/*.c))
-FLAGS   := -DGLEW_STATIC -DSDL_MAIN_HANDLED -ansi -Wall -Wextra -pedantic -ggdb
+FLAGS   := -DSDL_MAIN_HANDLED -ansi -Wall -Wextra -pedantic -ggdb
 INCLUDE := -Iinclude -IC:\dev\include 
 
 all: $(OBJECTS)
