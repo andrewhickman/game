@@ -17,6 +17,7 @@ SDL_Texture *util_render_text(
 	}
 
 	ret = SDL_CreateTextureFromSurface(renderer, surf);
+	SDL_FreeSurface(surf);
 	if (!ret) {
 		LOG_ERROR(SDL_GetError());
 		return NULL;
@@ -37,6 +38,7 @@ SDL_Texture *util_render_image(
 	}
 
 	ret = SDL_CreateTextureFromSurface(renderer, surf);
+	SDL_FreeSurface(surf);
 	if (!ret) {
 		LOG_ERROR(SDL_GetError());
 		return NULL;
