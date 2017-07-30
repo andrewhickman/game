@@ -3,7 +3,6 @@ FLAGS   := -DSDL_MAIN_HANDLED -ansi -Wall -Wextra -pedantic -ggdb
 INCLUDE := -Iinclude -IC:\dev\include 
 
 all: $(OBJECTS)
-	@echo $(OBJECTS)
 	gcc $(FLAGS) -LC:\dev\lib $(INCLUDE) -o bin $(OBJECTS) -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf 
 
 build/**/%.o: source/%.c

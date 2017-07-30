@@ -17,13 +17,6 @@ struct set {
 	size_t len;
 };
 
-struct set_iter {
-	unsigned const *start;
-	unsigned const *end;
-	unsigned block;
-	size_t pos;
-};
-
 struct set_result {
 	enum result result;
 	struct set value;
@@ -49,10 +42,26 @@ bool set_remove(struct set *, size_t);
 bool set_contains(struct set const *, size_t);
 size_t set_next_slot(struct set const *, size_t);
 
-struct set_iter set_iter(struct set const *);
 struct set_iter_result {
 	bool finished;
 	size_t value;
-} set_iter_next(struct set_iter *);
+}; 
+
+struct set_iter {
+	struct set set;
+	unsigned block;
+	size_t index;
+} set_iter(struct set const *);
+
+struct set_iter_result set_iter_next(struct set_iter *);
+
+struct set_and_iter {
+	struct set const *sets;
+	size_t nsets;
+	unsigned block;
+	size_t index;
+} set_and_iter(struct set const *, size_t nsets);
+
+struct set_iter_result set_and_iter_next(struct set_and_iter *);
 
 #endif

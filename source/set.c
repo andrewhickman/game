@@ -5,7 +5,7 @@
 
 void fill(unsigned *ptr, size_t len)
 {
-	while (len--) *ptr++ = UINT_MAX;
+	while (len--) *ptr++ = ~0;
 }
 
 void zero(unsigned *ptr, size_t len)
@@ -17,6 +17,13 @@ struct set set_create_empty(void)
 {
 	struct set ret = { NULL, 0 };
 	return ret;
+}
+
+size_t trailing_zeros(unsigned n)
+{
+	size_t i;
+	for (i = 0; !(n & 1); n >>= 1, ++i);
+	return i;
 }
 
 struct set_result set_create_filled(size_t n)
@@ -142,7 +149,7 @@ bool set_remove(struct set *set, size_t elem)
 
 	if (block < set->len) {
 		if (set->buf[block] & mask) {
-			set->buf[block] &= !mask;
+			set->buf[block] &= ~mask;
 			return true;
 		} else {
 			return false;
@@ -184,10 +191,9 @@ size_t set_next_slot(struct set const *set, size_t elem)
 struct set_iter set_iter(struct set const *set)
 {
 	struct set_iter ret;
-	ret.start = set->buf;
-	ret.end = set->buf + set->len;
-	ret.block = set->buf ? set->buf[0] : 0;
-	ret.pos = 0;
+	ret.set = *set;
+	ret.block = 0;
+	ret.index = 0;
 	return ret;
 }
 
@@ -195,19 +201,48 @@ struct set_iter_result set_iter_next(struct set_iter *iter)
 {
 	struct set_iter_result ret;
 	while (!iter->block) {
-		if (++iter->start == iter->end) {
+		if (iter->index == iter->set.len) {
 			ret.finished = true;
 			return ret;
 		}
-		iter->block = *iter->start;
+		iter->block = iter->set.buf[iter->index++];
 	}
-	while (!(iter->block & 0x1)) {
-		iter->block >>= 1;
-		++iter->pos;
-	}
-	iter->block >>= 1;
-	++iter->pos;
 	ret.finished = false;
-	ret.value = iter->pos;
+	ret.value = (iter->index - 1) * SET_BLOCK_BITS;
+	ret.value += trailing_zeros(iter->block & ~(iter->block - 1));
+	iter->block &= iter->block - 1;
+	return ret;
+}
+
+struct set_and_iter set_and_iter(struct set const *sets, size_t nsets)
+{
+	struct set_and_iter ret;
+	ret.sets = sets;
+	ret.nsets = nsets;
+	ret.block = 0;
+	ret.index = 0;
+	return ret;
+}
+
+struct set_iter_result set_and_iter_next(struct set_and_iter *iter)
+{
+	struct set_iter_result ret;
+	while (!iter->block) {
+		size_t i;
+		iter->block = ~0;
+		for (i = 0; i < iter->nsets; ++i) {
+			struct set set = iter->sets[i];
+			if (iter->index == set.len) {
+				ret.finished = true;
+				return ret;
+			}
+			iter->block &= set.buf[iter->index];
+		}
+		++iter->index;
+	}
+	ret.finished = false;
+	ret.value = (iter->index - 1) * SET_BLOCK_BITS;
+	ret.value += trailing_zeros(iter->block & ~(iter->block - 1));
+	iter->block &= iter->block - 1;
 	return ret;
 }

@@ -15,7 +15,7 @@ struct gs_cpnt_result {
 	enum result result;
 	struct gs_cpnt value;
 } gs_cpnt_create(size_t len, size_t size);
-enum result gs_cpnt_insert(struct gs_cpnt *, size_t id, size_t size);
+enum result gs_cpnt_insert(struct gs_cpnt *, unsigned id, size_t size);
 void gs_cpnt_destroy(struct gs_cpnt);
 
 /* Components */

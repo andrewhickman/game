@@ -25,12 +25,12 @@ fail_entities:
 	return ret;
 }
 
-enum result gs_cpnt_insert(struct gs_cpnt *cpnt, size_t id, size_t size)
+enum result gs_cpnt_insert(struct gs_cpnt *cpnt, unsigned id, size_t size)
 {
 	size_t old_len = cpnt->entities.len;
 	if (set_insert(&cpnt->entities, id) == SET_ERR) return RESULT_ERR;
 	if (cpnt->entities.len != old_len) {
-		void *data = realloc(cpnt->data, cpnt->entities.len * size);
+		void *data = realloc(cpnt->data, cpnt->entities.len * SET_BLOCK_BITS * size);
 		if (!data) {
 			LOG_ERROR("out of memory");
 			return RESULT_ERR;

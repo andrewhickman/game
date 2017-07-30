@@ -3,16 +3,22 @@
 
 #include "SDL2/SDL.h"
 
-#include "interface/units.h"
-#include "interface/main.h"
-#include "interface/map.h"
 #include "error.h"
 #include "gamestate/gs.h"
 
 struct ui {
-	struct ui_units units;
-	struct ui_main main;
-	struct ui_map map;
+	struct ui_units {
+		SDL_Rect pos;
+		SDL_Texture *texture;
+	} units;
+	struct ui_main {
+		SDL_Rect pos;
+		SDL_Texture *texture;
+	} main;
+	struct ui_map {
+		SDL_Rect pos;
+		SDL_Texture *texture;
+	} map;
 };
 
 struct ui_result {

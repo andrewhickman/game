@@ -1,4 +1,5 @@
 #include "win.h"
+#include "texture.h"
 
 struct win_result win_create(void)
 {
@@ -30,6 +31,10 @@ struct win_result win_create(void)
 		LOG_ERROR(SDL_GetError());
 		goto fail_renderer;
 	}
+
+	if (texture_create(ret.value.renderer) == RESULT_ERR) {
+		goto fail_texture;
+	}
 	 
 	{
 		struct ui_result ui = ui_create(ret.value.renderer, 640, 480);
@@ -53,6 +58,8 @@ struct win_result win_create(void)
 fail_gs:
 	ui_destroy(ret.value.ui);
 fail_ui:
+	texture_destroy();
+fail_texture:
 	SDL_DestroyRenderer(ret.value.renderer);
 fail_renderer:
 	SDL_DestroyWindow(ret.value.window);
@@ -86,11 +93,20 @@ enum win_status win_update(struct win *win)
 		}
 	}
 
-	gs_update(&win->gs);
-
-	SDL_SetRenderDrawColor(win->renderer, 0, 0, 0, 255);
-	SDL_RenderClear(win->renderer);
-	ui_draw(&win->ui, win->renderer, &win->gs);
+	if (SDL_SetRenderDrawColor(win->renderer, 0, 0, 0, 255)) {
+		LOG_ERROR(SDL_GetError());
+		return WIN_ERR;
+	}
+	if (SDL_RenderClear(win->renderer)) {
+		LOG_ERROR(SDL_GetError());
+		return WIN_ERR;
+	}
+	if (gs_update(&win->gs, win->renderer) == RESULT_ERR) {
+		return WIN_ERR;
+	}
+	if (ui_draw(&win->ui, win->renderer, &win->gs) == RESULT_ERR) {
+		return WIN_ERR;
+	}
 	SDL_RenderPresent(win->renderer);
 
 	return WIN_CONTINUE;
@@ -100,6 +116,7 @@ void win_destroy(struct win win)
 {
 	gs_destroy(win.gs);
 	ui_destroy(win.ui);
+	texture_destroy();
 	SDL_DestroyRenderer(win.renderer);
 	SDL_DestroyWindow(win.window);
 }
