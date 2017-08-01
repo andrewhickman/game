@@ -1,20 +1,22 @@
-#ifndef GAMESTATE_GEN_H
-#define GAMESTATE_GEN_H
+#ifndef GAMESTATE_ENTITY_H
+#define GAMESTATE_ENTITY_H
 
 #include "error.h"
 #include "set.h"
+#include "gamestate/cpnt.h"
 
 #include <stddef.h>
 
 struct gs_entities {
-	struct set set;
-	unsigned space;
+	enum gs_cpnt *buf;
+	size_t len;
+	unsigned start;
 };
 
 struct gs_entities_result {
 	enum result result;
 	struct gs_entities value;
-} gs_entities_create(size_t cap);
+} gs_entities_create(size_t len);
 
 struct gs_entities_new_result {
 	enum result result;	

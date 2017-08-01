@@ -3,15 +3,15 @@
 
 #include "SDL2/SDL.h"
 
-#include "gamestate/entity.h"
 #include "gamestate/cpnt.h"
+#include "gamestate/entity.h"
 #include "error.h"
 #include "texture.h"
 #include "set.h"
 
 struct gs {
 	struct gs_entities entities;
-	struct gs_cpnt pos, vel, draw;
+	struct gs_cpnt_sparse pos, vel, draw;
 };
 
 struct gs_result {

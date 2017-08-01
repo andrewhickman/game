@@ -40,7 +40,10 @@ enum result ui_draw(struct ui *ui, SDL_Renderer *renderer, struct gs const *gs)
 		SDL_RenderSetViewport(renderer, &ui->units.pos);
 		SDL_RenderCopy(renderer, ui->main.texture, NULL, &bound);
 		for (i = 0; i < 4; ++i) {
-			if (SDL_RenderCopy(renderer, ui->units.texture, NULL, &bound)) {
+			if (SDL_RenderCopy(renderer, 
+			                   ui->units.texture, 
+			                   NULL, 
+			                   &bound)) {
 				return RESULT_ERR;
 			}
 			SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);

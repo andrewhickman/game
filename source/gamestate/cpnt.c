@@ -2,46 +2,77 @@
 
 #include <stdlib.h>
 
-struct gs_cpnt_result gs_cpnt_create(size_t len, size_t size)
+struct gs_cpnt_sparse_result gs_cpnt_sparse_create(size_t len, size_t size)
 {
-	struct gs_cpnt_result ret;
+	struct gs_cpnt_sparse_result ret;
 
-	{
-		struct set_result entities = set_create_with_capacity(len);
-		if (entities.result == RESULT_ERR) goto fail_entities;
-		ret.value.entities = entities.value;
-	}
-
-	ret.value.data = malloc(len * size);
-	if (!ret.value.data) goto fail_data;
-
+	ret.value.buf = malloc(len * size);
+	if (!ret.value.buf) goto fail_buf;
+	ret.value.len = len;
+	ret.value.cap = len;
+	ret.value.indices = malloc(len * sizeof(size_t));
+	if (!ret.value.indices) goto fail_indices;
+	ret.value.indices_len = len;
+	
 	ret.result = RESULT_OK;
 	return ret;
 
-fail_data:
-	set_destroy(ret.value.entities);
-fail_entities:
+fail_indices:
+	free(ret.value.buf);
+fail_buf:
+	LOG_ERROR("out of memory");
 	ret.result = RESULT_ERR;
 	return ret;
 }
 
-enum result gs_cpnt_insert(struct gs_cpnt *cpnt, unsigned id, size_t size)
+void *gs_cpnt_sparse_insert(struct gs_cpnt_sparse *store, unsigned id, size_t size)
 {
-	size_t old_len = cpnt->entities.len;
-	if (set_insert(&cpnt->entities, id) == SET_ERR) return RESULT_ERR;
-	if (cpnt->entities.len != old_len) {
-		void *data = realloc(cpnt->data, cpnt->entities.len * SET_BLOCK_BITS * size);
-		if (!data) {
+	size_t idx;
+	if (store->len == store->cap) {
+		size_t cap = store->cap ? store->cap * 2 : 1;
+		void *buf = realloc(store->buf, cap * size);
+		if (!buf) {
 			LOG_ERROR("out of memory");
-			return RESULT_ERR;
+			return NULL;
 		}
-		cpnt->data = data;
+		store->buf = buf;
+		store->cap = cap;
 	}
-	return RESULT_OK;
+	idx = store->len++;
+
+	if (id >= store->indices_len) {
+		size_t len = store->indices_len ? store->indices_len * 2 : 1;
+		size_t *indices = realloc(store->indices, len * sizeof(size_t));
+		if (!indices) {
+			LOG_ERROR("out of memory");
+			return NULL;
+		}
+		store->indices = indices;
+		store->indices_len = len;
+	}
+	store->indices[id] = idx;
+
+	return (char *)store->buf + idx * size;
 }
 
-void gs_cpnt_destroy(struct gs_cpnt cpnt)
+void *gs_cpnt_sparse_get(struct gs_cpnt_sparse *cpnt, unsigned id, size_t size)
 {
-	free(cpnt.data);
-	set_destroy(cpnt.entities);
+	return (char *)cpnt->buf + cpnt->indices[id] * size;
 }
+
+void gs_cpnt_sparse_destroy(struct gs_cpnt_sparse store)
+{
+	free(store.buf);
+	free(store.indices);
+}
+
+struct gs_cpnt_dense_result gs_cpnt_dense_create(size_t len, size_t size);
+
+void *gs_cpnt_dense_insert(struct gs_cpnt_dense *, unsigned id, size_t size);
+
+void *gs_cpnt_dense_get(struct gs_cpnt_dense *cpnt, unsigned id, size_t size)
+{
+	return (char *)cpnt->buf + id * size;
+}
+
+void gs_cpnt_dense_destroy(struct gs_cpnt_dense);

@@ -6,17 +6,57 @@
 
 #include <stddef.h>
 
-struct gs_cpnt {
-	struct set entities;	
-	void *data;
+/*
+  vel   draw
+     \ /
+     pos
+*/
+
+enum gs_cpnt {
+	GS_CPNT_NONE = 0,
+	GS_CPNT_POS = 1 << 0,
+	GS_CPNT_VEL = (1 << 1) | GS_CPNT_POS,
+	GS_CPNT_DRAW = (1 << 2) | GS_CPNT_POS
 };
 
-struct gs_cpnt_result {
+/* A storage method for rarely-used components. */
+struct gs_cpnt_sparse {
+	void *buf;
+	size_t len, cap;
+	size_t *indices;
+	size_t indices_len;
+};
+
+struct gs_cpnt_sparse_result {
 	enum result result;
-	struct gs_cpnt value;
-} gs_cpnt_create(size_t len, size_t size);
-enum result gs_cpnt_insert(struct gs_cpnt *, unsigned id, size_t size);
-void gs_cpnt_destroy(struct gs_cpnt);
+	struct gs_cpnt_sparse value;
+} gs_cpnt_sparse_create(size_t len, size_t size);
+
+/* Return a space for insertion of new data */
+void *gs_cpnt_sparse_insert(struct gs_cpnt_sparse *, unsigned id, size_t size);
+
+/* Index the storage */
+void *gs_cpnt_sparse_get(struct gs_cpnt_sparse *, unsigned id, size_t size);
+
+void gs_cpnt_sparse_destroy(struct gs_cpnt_sparse);
+
+/* A storage method for commonly-used components. */
+struct gs_cpnt_dense {
+	void *buf;
+	size_t len;
+};
+
+struct gs_cpnt_dense_result {
+	enum result result;
+	struct gs_cpnt_dense value;
+} gs_cpnt_dense_create(size_t len, size_t size);
+
+/* Return a space for insertion of new data or NULL on failure */
+void *gs_cpnt_dense_insert(struct gs_cpnt_dense *, unsigned id, size_t size);
+
+void *gs_cpnt_dense_get(struct gs_cpnt_dense *, unsigned id, size_t size);
+
+void gs_cpnt_dense_destroy(struct gs_cpnt_dense);
 
 /* Components */
 
