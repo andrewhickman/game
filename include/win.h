@@ -4,8 +4,8 @@
 #include "SDL2/SDL.h"
 
 #include "error.h"
-#include "interface/ui.h"
-#include "gamestate/gs.h"
+#include "ui.h"
+#include "gs.h"
 
 /* Controls the renderering context and events. */
 struct win {

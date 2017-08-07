@@ -1,15 +1,16 @@
-#ifndef INTERFACE_UI_H
-#define INTERFACE_UI_H
+#ifndef UI_H
+#define UI_H
 
 #include "SDL2/SDL.h"
 
 #include "error.h"
-#include "gamestate/gs.h"
+#include "gs.h"
 
 struct ui {
 	struct ui_units {
 		SDL_Rect pos;
 		SDL_Texture *texture;
+		struct ent ents[4];
 	} units;
 	struct ui_main {
 		SDL_Rect pos;
@@ -19,12 +20,14 @@ struct ui {
 		SDL_Rect pos;
 		SDL_Texture *texture;
 	} map;
+	struct gs_find_result selected;
 };
 
 struct ui_result {
 	enum result result;
-	struct ui value;
-} ui_create(SDL_Renderer *renderer, int w, int h);
+	struct ui ui;
+	struct gs gs;
+} ui_create(SDL_Renderer *, int w, int h);
 
 enum result ui_draw(struct ui *, SDL_Renderer *, struct gs const *);
 

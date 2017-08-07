@@ -4,7 +4,6 @@
 
 #include "error.h"
 #include "win.h"
-#include "set.h"
 
 #include <stdlib.h>
 
@@ -36,6 +35,7 @@ int main(int argc, char *argv[])
 	{
 		struct win_result win_result = win_create();
 		if (win_result.result == RESULT_ERR) {
+			LOG_CHAIN();
 			ret = EXIT_FAILURE;
 			goto fail_win;
 		}
@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
 		case WIN_CONTINUE:
 			continue;
 		case WIN_ERR:
+			LOG_CHAIN();
 			ret = EXIT_FAILURE;
 		case WIN_QUIT:
 			goto exit;
@@ -62,6 +63,9 @@ fail_ttf:
 fail_img:
 	SDL_Quit();
 fail_sdl:
-	SDL_Log("Exiting with return code %d.", ret);
+	if (ret == EXIT_FAILURE) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, SDL_GetError());
+	}
+	SDL_Log("exiting with return code %d.", ret);
 	return ret;
 }

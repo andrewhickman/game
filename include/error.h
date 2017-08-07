@@ -9,5 +9,7 @@ enum result {
 
 #define LOG_ERROR(msg) SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,              \
                                     "%s in %s:%d.", msg, __FILE__, __LINE__)
+#define LOG_CHAIN() SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,                 \
+                                 "   called from %s:%d.", __FILE__, __LINE__)
 
 #endif

@@ -33,30 +33,23 @@ struct win_result win_create(void)
 	}
 
 	if (texture_create(ret.value.renderer) == RESULT_ERR) {
+		LOG_CHAIN();
 		goto fail_texture;
 	}
 	 
 	{
 		struct ui_result ui = ui_create(ret.value.renderer, 640, 480);
 		if (ui.result == RESULT_ERR) {
+			LOG_CHAIN();
 			goto fail_ui;
 		}
-		ret.value.ui = ui.value;
-	}
-
-	{
-		struct gs_result gs = gs_create();
-		if (gs.result == RESULT_ERR) {
-			goto fail_gs;
-		}
-		ret.value.gs = gs.value;
+		ret.value.ui = ui.ui;
+		ret.value.gs = ui.gs;
 	}
 
 	ret.result = RESULT_OK;
 	return ret;
 
-fail_gs:
-	ui_destroy(ret.value.ui);
 fail_ui:
 	texture_destroy();
 fail_texture:
@@ -86,6 +79,7 @@ enum win_status win_update(struct win *win)
 			case UI_CONTINUE:
 				continue;
 			case UI_ERR:
+				LOG_CHAIN();
 				return WIN_ERR;
 			case UI_QUIT:
 				return WIN_QUIT;
@@ -102,9 +96,11 @@ enum win_status win_update(struct win *win)
 		return WIN_ERR;
 	}
 	if (gs_update(&win->gs, win->renderer) == RESULT_ERR) {
+		LOG_CHAIN();
 		return WIN_ERR;
 	}
 	if (ui_draw(&win->ui, win->renderer, &win->gs) == RESULT_ERR) {
+		LOG_CHAIN();
 		return WIN_ERR;
 	}
 	SDL_RenderPresent(win->renderer);

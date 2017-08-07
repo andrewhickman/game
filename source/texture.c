@@ -18,6 +18,7 @@ enum result texture_create(SDL_Renderer *renderer)
 	for (i = 0; i < TEXTURE_COUNT; ++i) {
 		textures[i] = util_render_image(renderer, texture_paths[i]);
 		if (!textures[i]) {
+			LOG_CHAIN();
 			texture_destroy_n(i);
 			return RESULT_ERR;
 		}
