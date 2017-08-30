@@ -63,9 +63,10 @@ fail_ttf:
 fail_img:
 	SDL_Quit();
 fail_sdl:
-	if (ret == EXIT_FAILURE) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, SDL_GetError());
+	if (ret) {
+		SDL_Log("exiting unsuccessfully (exit code %d).", ret);
+	} else {
+		SDL_Log("exiting successfully.");
 	}
-	SDL_Log("exiting with return code %d.", ret);
 	return ret;
 }

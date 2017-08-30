@@ -18,7 +18,7 @@ struct ent_store_result ent_store_create(size_t len)
 	return ret;
 }
 
-struct ent_result ent_store_new(struct ent_store *es)
+struct ent_result ent_store_spawn(struct ent_store *es)
 {
 	struct ent_result ret;
 
@@ -50,7 +50,7 @@ exit:
 
 void ent_store_kill(struct ent_store *es, struct ent ent)
 {
-	if (ent.gen == es->buf[ent.id].gen) {
+	if (ent_store_is_alive(es, ent)) {
 		es->buf[ent.id].cpnt = CPNT_NONE;
 		es->buf[ent.id].gen = -es->buf[ent.id].gen;
 		if (ent.id < es->start) {
@@ -59,13 +59,44 @@ void ent_store_kill(struct ent_store *es, struct ent ent)
 	}
 }
 
-struct ent_store_iter ent_store_iter(struct ent_store const *es)
+void ent_store_add_cpnt(struct ent_store *es, struct ent ent, enum cpnt cpnt)
+{
+	ASSERT(ent_store_is_alive(es, ent));
+	es->buf[ent.id].cpnt |= cpnt;
+}
+
+bool ent_store_rm_cpnt(struct ent_store *es, struct ent ent, enum cpnt cpnt)
+{
+	if (ent_store_is_alive(es, ent)) {
+		es->buf[ent.id].cpnt &= ~cpnt;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+enum cpnt ent_store_get_cpnt(struct ent_store const *es, struct ent ent)
+{
+	if (ent_store_is_alive(es, ent)) {
+		return es->buf[ent.id].cpnt;
+	} else {
+		return CPNT_NONE;
+	}
+}
+
+bool ent_store_is_alive(struct ent_store const *es, struct ent ent)
+{
+	return ent.gen == es->buf[ent.id].gen;
+}
+
+struct ent_store_iter ent_store_iter(struct ent_store const *es, enum cpnt cpnt)
 {
 	struct ent_store_iter ret;
 
 	ret.buf = es->buf;
 	ret.len = es->len;
 	ret.id = 0;
+	ret.cpnt = cpnt;
 
 	return ret;
 }
@@ -76,7 +107,7 @@ struct ent_store_iter_result ent_store_iter_next(struct ent_store_iter *iter)
 
 	while (iter->id != iter->len) {
 		struct ent_data data = iter->buf[iter->id];
-		if (data.gen > 0) {
+		if ((data.cpnt & iter->cpnt) == iter->cpnt && data.gen > 0) {
 			ret.finished = false;
 			ret.ent.id = iter->id++;
 			ret.ent.gen = data.gen;

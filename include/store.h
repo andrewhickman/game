@@ -18,10 +18,9 @@ struct store_sparse_result {
 
 /* Return a space for insertion of new data or NULL on failure */
 void *store_sparse_insert(struct store_sparse *, unsigned id, size_t size);
-
 /* Index the storage */
-void *store_sparse_get(struct store_sparse *, unsigned id, size_t size);
-
+void const *store_sparse_get(struct store_sparse const *, unsigned id, size_t size);
+void *store_sparse_get_mut(struct store_sparse *, unsigned id, size_t size);
 void store_sparse_destroy(struct store_sparse);
 
 /* A storage method for commonly-used components. */
@@ -37,9 +36,8 @@ struct store_dense_result {
 
 /* Return a space for insertion of new data or NULL on failure */
 void *store_dense_insert(struct store_dense *, unsigned id, size_t size);
-
-void *store_dense_get(struct store_dense *, unsigned id, size_t size);
-
+void const *store_dense_get(struct store_dense const *, unsigned id, size_t size);
+void *store_dense_get_mut(struct store_dense *, unsigned id, size_t size);
 void store_dense_destroy(struct store_dense);
 
 #endif

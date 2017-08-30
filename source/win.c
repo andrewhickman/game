@@ -1,5 +1,6 @@
 #include "win.h"
-#include "texture.h"
+#include "resrc.h"
+#include "sys.h"
 
 struct win_result win_create(void)
 {
@@ -32,6 +33,11 @@ struct win_result win_create(void)
 		goto fail_renderer;
 	}
 
+	if (font_create() == RESULT_ERR) {
+		LOG_CHAIN();
+		goto fail_font;
+	}
+
 	if (texture_create(ret.value.renderer) == RESULT_ERR) {
 		LOG_CHAIN();
 		goto fail_texture;
@@ -51,9 +57,11 @@ struct win_result win_create(void)
 	return ret;
 
 fail_ui:
-	texture_destroy();
+	font_destroy();
 fail_texture:
 	SDL_DestroyRenderer(ret.value.renderer);
+fail_font:
+	texture_destroy();
 fail_renderer:
 	SDL_DestroyWindow(ret.value.window);
 fail_window:
@@ -95,7 +103,7 @@ enum win_status win_update(struct win *win)
 		LOG_ERROR(SDL_GetError());
 		return WIN_ERR;
 	}
-	if (gs_update(&win->gs, win->renderer) == RESULT_ERR) {
+	if (sys_update(&win->gs) == RESULT_ERR) {
 		LOG_CHAIN();
 		return WIN_ERR;
 	}

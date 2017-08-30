@@ -6,13 +6,13 @@
 #include "cpnt.h"
 #include "ent.h"
 #include "error.h"
-#include "texture.h"
+#include "resrc.h"
 #include "store.h"
 
 struct gs {
-	struct ent_store entities;
-	struct store_dense pos, vel; 
-	struct store_sparse draw, select;
+	struct ent_store ents;
+	struct store_sparse hp, draw;
+	struct store_dense pos, vel, select, coll; 
 };
 
 struct gs_result {
@@ -21,22 +21,15 @@ struct gs_result {
 	struct ent ents[4];
 } gs_create(void);
 
-enum result gs_update(struct gs *, SDL_Renderer *);
+struct ent_result gs_spawn(struct gs *);
+void gs_kill(struct gs *, struct ent);
 
-struct ent_result gs_new_unit(struct gs *, int x, int y, enum texture);
-
-struct gs_find_result {
-	bool found;
-	struct ent ent;
-}; 
-
-struct gs_find_result gs_hover(struct gs *, int x, int y);
-struct gs_find_result gs_select(struct gs *, int x, int y);
-
-struct gs_query_result {
-	bool found;
-	int health;
-} gs_query(struct gs const *, struct ent);
+enum result gs_insert_pos(struct gs *, struct ent, struct cpnt_pos);
+enum result gs_insert_vel(struct gs *, struct ent, struct cpnt_vel);
+enum result gs_insert_draw(struct gs *, struct ent, struct cpnt_draw);
+enum result gs_insert_select(struct gs *, struct ent, struct cpnt_select);
+enum result gs_insert_coll(struct gs *, struct ent, struct cpnt_coll);
+enum result gs_insert_hp(struct gs *gs, struct ent, struct cpnt_hp);
 
 void gs_destroy(struct gs);
 

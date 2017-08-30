@@ -5,6 +5,7 @@
 
 #include "error.h"
 #include "gs.h"
+#include "sys.h"
 
 struct ui {
 	struct ui_units {
@@ -20,7 +21,8 @@ struct ui {
 		SDL_Rect pos;
 		SDL_Texture *texture;
 	} map;
-	struct gs_find_result selected;
+	struct gs_find_result hovered, selected;
+	SDL_Rect camera;
 };
 
 struct ui_result {

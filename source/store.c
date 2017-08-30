@@ -1,13 +1,7 @@
 #include "store.h"
+#include "util.h"
 
 #include <stdlib.h>
-
-size_t next_power_of_two(unsigned n) {
-	size_t ret = 1;
-	while (ret <= n) ret *= 2;
-
-	return ret;
-}
 
 struct store_sparse_result store_sparse_create(size_t len, size_t size)
 {
@@ -51,7 +45,7 @@ void *store_sparse_insert(
 	idx = store->len++;
 
 	if (id >= store->indices_len) {
-		size_t len = next_power_of_two(id);
+		size_t len = util_next_pow_2(id);
 		size_t *indices = realloc(store->indices, len * size);
 		if (!indices) {
 			LOG_ERROR("out of memory");
@@ -62,11 +56,22 @@ void *store_sparse_insert(
 	}
 	store->indices[id] = idx;
 
-	return store_sparse_get(store, id, size);
+	return store_sparse_get_mut(store, id, size);
 }
 
-void *store_sparse_get(struct store_sparse *store, unsigned id, size_t size)
-{
+void const *store_sparse_get(
+	struct store_sparse const *store, 
+	unsigned id, 
+	size_t size
+) {
+	return (char *)store->buf + store->indices[id] * size;
+}
+
+void *store_sparse_get_mut(
+	struct store_sparse *store, 
+	unsigned id, 
+	size_t size
+) {
 	return (char *)store->buf + store->indices[id] * size;
 }
 
@@ -94,7 +99,7 @@ struct store_dense_result store_dense_create(size_t len, size_t size)
 void *store_dense_insert(struct store_dense *store, unsigned id, size_t size)
 {
 	if (id >= store->len) {
-		size_t len = next_power_of_two(id);
+		size_t len = util_next_pow_2(id);
 		void *buf = realloc(store->buf, len * size);
 		if (!buf) {
 			LOG_ERROR("out of memory");
@@ -103,10 +108,15 @@ void *store_dense_insert(struct store_dense *store, unsigned id, size_t size)
 		store->buf = buf;
 		store->len = len;
 	}
-	return store_dense_get(store, id, size);
+	return store_dense_get_mut(store, id, size);
 }
 
-void *store_dense_get(struct store_dense *store, unsigned id, size_t size)
+void const *store_dense_get(struct store_dense const *store, unsigned id, size_t size)
+{
+	return (char *)store->buf + id * size;
+}
+
+void *store_dense_get_mut(struct store_dense *store, unsigned id, size_t size)
 {
 	return (char *)store->buf + id * size;
 }

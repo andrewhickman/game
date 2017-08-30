@@ -15,18 +15,18 @@ struct win {
 	struct gs gs;
 };
 
-/* Trys to create a new window. */
+/* Try to create a new window. */
 struct win_result {
 	enum result result;
 	struct win value;
 } win_create(void);
 
-/* Updates a window. */
+/* Update a window. */
 enum win_status {
 	WIN_CONTINUE, WIN_QUIT, WIN_ERR	
 } win_update(struct win *);
 
-/* Destroys a window. */
+/* Destroy a window. */
 void win_destroy(struct win);
 
 #endif
