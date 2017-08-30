@@ -204,8 +204,12 @@ enum result gs_insert_coll(struct gs *gs, struct ent ent, struct cpnt_coll coll)
 
 void gs_destroy(struct gs gs)
 {
+	store_sparse_destroy(gs.hp);
 	store_sparse_destroy(gs.draw);
+	store_dense_destroy(gs.select);
+	store_dense_destroy(gs.coll);
 	store_dense_destroy(gs.vel);
 	store_dense_destroy(gs.pos);
+	ent_store_destroy(gs.ents);
 	ent_store_destroy(gs.ents);
 }

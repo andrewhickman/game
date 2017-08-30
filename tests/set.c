@@ -76,6 +76,8 @@ void test_set_iter()
 	ASSERT(result.value == 1700);
 	result = set_iter_next(&iter);
 	ASSERT(result.finished);
+
+	set_destroy(set);
 }
 
 void test_set(void)
