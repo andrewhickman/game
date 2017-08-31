@@ -67,6 +67,8 @@ struct gs_result gs_create(void)
 		ret.value.hp = cpnt.value;
 	}
 
+	ret.value.path = graph_create();
+
 	{
 		int i;
 		struct ent_result ent;
@@ -85,6 +87,7 @@ struct gs_result gs_create(void)
 	return ret;
 
 fail_ents:
+	graph_destroy(ret.value.path);
 	store_sparse_destroy(ret.value.hp);
 fail_hp:
 	store_sparse_destroy(ret.value.draw);
@@ -201,8 +204,6 @@ enum result gs_insert_coll(struct gs *gs, struct ent ent, enum cpnt_coll_shape s
 		return RESULT_ERR;
 	}
 	space->shape = shape;
-	space->nodes = set_create_null();
-	space->offset = 0;
 	path_add_coll(gs, ent.id, space);
 
 	return RESULT_OK;
@@ -233,6 +234,7 @@ void gs_destroy(struct gs gs)
 		*/
 	}
 
+	graph_destroy(gs.path);
 	store_sparse_destroy(gs.hp);
 	store_sparse_destroy(gs.draw);
 	store_dense_destroy(gs.select);

@@ -78,6 +78,10 @@ void test_es_iter(void)
 
 	result = ent_store_iter_next(&iter);
 	ASSERT(result.finished);
+	result = ent_store_iter_next(&iter);
+	ASSERT(result.finished);
+	result = ent_store_iter_next(&iter);
+	ASSERT(result.finished);
 
 	ent_store_destroy(es);
 }

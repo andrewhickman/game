@@ -8,6 +8,6 @@ void assert_impl(int val, char const *expr, char const *file, int line)
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 		             "assertion '%s' failed in %s:%d, aborting.", 
 		             expr, file, line);	
-		abort();
+		exit(1);
 	}
 }

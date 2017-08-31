@@ -4,7 +4,8 @@
 
 void cpnt_coll_destroy(struct cpnt_coll coll)
 {
-	set_destroy(coll.nodes);
+	bset_destroy(coll.nodes);
+	hset_destroy(coll.blocked);
 }
 
 void cpnt_path_destroy(struct cpnt_path path)
