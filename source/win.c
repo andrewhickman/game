@@ -57,11 +57,11 @@ struct win_result win_create(void)
 	return ret;
 
 fail_ui:
-	font_destroy();
-fail_texture:
-	SDL_DestroyRenderer(ret.value.renderer);
-fail_font:
 	texture_destroy();
+fail_texture:
+	font_destroy();
+fail_font:
+	SDL_DestroyRenderer(ret.value.renderer);
 fail_renderer:
 	SDL_DestroyWindow(ret.value.window);
 fail_window:
@@ -121,6 +121,7 @@ void win_destroy(struct win win)
 	gs_destroy(win.gs);
 	ui_destroy(win.ui);
 	texture_destroy();
+	font_destroy();
 	SDL_DestroyRenderer(win.renderer);
 	SDL_DestroyWindow(win.window);
 }

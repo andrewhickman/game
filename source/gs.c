@@ -242,5 +242,4 @@ void gs_destroy(struct gs gs)
 	store_dense_destroy(gs.vel);
 	store_dense_destroy(gs.pos);
 	ent_store_destroy(gs.ents);
-	ent_store_destroy(gs.ents);
 }

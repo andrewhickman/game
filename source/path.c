@@ -46,6 +46,8 @@ enum result path_add_coll(struct gs *gs, unsigned id, struct cpnt_coll *coll)
 		coll->blocked = blocked.value;
 	}
 
+	coll->nodes = bset_create_null();
+
 	return RESULT_OK;
 }
 
