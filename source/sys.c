@@ -91,7 +91,7 @@ enum result sys_update(struct gs *gs)
 			store_sparse_get(&gs->hp, result.ent.id, sizeof(*hp));
 
 		if (hp->health <= 0) {
-			ent_store_kill(&gs->ents, result.ent);
+			gs_kill(gs, result.ent);
 		}
 	}
 
@@ -124,7 +124,7 @@ enum result sys_draw(struct gs const *gs, SDL_Renderer *renderer, SDL_Rect const
 
 struct ent_result sys_new_unit(struct gs *gs, int x, int y, enum texture texture)
 {
-	struct ent_result ent = ent_store_spawn(&gs->ents);
+	struct ent_result ent = gs_spawn(gs);
 	if (ent.result == RESULT_ERR) {
 		LOG_CHAIN();
 		return ent;
@@ -164,9 +164,7 @@ struct ent_result sys_new_unit(struct gs *gs, int x, int y, enum texture texture
 	}
 
 	{
-		struct cpnt_coll coll;
-		coll.shape = CPNT_COLL_ELLIPSE;
-		if (gs_insert_coll(gs, ent.value, coll) == RESULT_ERR) {
+		if (gs_insert_coll(gs, ent.value, CPNT_COLL_ELLIPSE) == RESULT_ERR) {
 			LOG_CHAIN();
 			goto fail;
 		}
@@ -266,12 +264,11 @@ struct gs_find_result sys_find_select(struct gs *gs, int x, int y)
 
 void sys_nuke(struct gs *gs, struct ent ent, int dmg)
 {
-	enum cpnt cpnt = ent_store_get_cpnt(&gs->ents, ent);
-	struct cpnt_hp *hp = cpnt & CPNT_HP 
-		? store_sparse_get_mut(&gs->hp, ent.id, sizeof(*hp))
-		: NULL;
-	
-	if (hp) hp->health -= dmg;
+	if (ent_store_get_cpnt(&gs->ents, ent) & CPNT_HP) {
+		struct cpnt_hp *hp =
+			store_sparse_get_mut(&gs->hp, ent.id, sizeof(*hp));
+		hp->health -= dmg;
+	}
 }
 
 struct sys_query_result sys_query(struct gs const *gs, struct ent ent)

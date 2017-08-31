@@ -1,5 +1,6 @@
 #include "gs.h"
 #include "sys.h"
+#include "path.h"
 
 bool gs_select_collide_circle(int x, int y, int w, int h);
 
@@ -109,6 +110,8 @@ struct ent_result gs_spawn(struct gs *gs)
 
 void gs_kill(struct gs *gs, struct ent ent)
 {
+	enum cpnt cpnt = ent_store_get_cpnt(&gs->ents, ent);
+	if (cpnt & CPNT_COLL) gs_remove_coll(gs, ent);
 	ent_store_kill(&gs->ents, ent);
 }
 
@@ -187,7 +190,7 @@ enum result gs_insert_select(struct gs *gs, struct ent ent, struct cpnt_select s
 	return RESULT_OK;
 }
 
-enum result gs_insert_coll(struct gs *gs, struct ent ent, struct cpnt_coll coll)
+enum result gs_insert_coll(struct gs *gs, struct ent ent, enum cpnt_coll_shape shape)
 {
 	struct cpnt_coll *space;
 
@@ -197,13 +200,39 @@ enum result gs_insert_coll(struct gs *gs, struct ent ent, struct cpnt_coll coll)
 		LOG_CHAIN();
 		return RESULT_ERR;
 	}
-	*space = coll;
+	space->shape = shape;
+	space->nodes = set_create_null();
+	space->offset = 0;
+	path_add_coll(gs, ent.id, space);
 
 	return RESULT_OK;
 }
 
+void gs_remove_coll(struct gs *gs, struct ent ent)
+{
+	struct cpnt_coll *coll = store_dense_get_mut(&gs->coll, ent.id, sizeof(*coll));
+	path_rm_coll(gs, ent.id, *coll);
+}
+
 void gs_destroy(struct gs gs)
 {
+	unsigned id;
+	for (id = 0; id != gs.ents.len; ++id) {
+		if (gs.ents.buf[id].gen <= 0) continue;
+		if (gs.ents.buf[id].cpnt & CPNT_COLL) {
+			struct cpnt_coll *coll = 
+				store_dense_get_mut(&gs.coll, id, sizeof(*coll));
+			cpnt_coll_destroy(*coll);
+		}
+		/*
+		if (gs.ents.buf[id].cpnt & CPNT_PATH) {
+			struct cpnt_path *path = 
+				store_dense_get_mut(&gs.path, id, sizeof(*path));
+			cpnt_path_destroy(*path);
+		}
+		*/
+	}
+
 	store_sparse_destroy(gs.hp);
 	store_sparse_destroy(gs.draw);
 	store_dense_destroy(gs.select);

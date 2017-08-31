@@ -8,11 +8,13 @@
 #include "error.h"
 #include "resrc.h"
 #include "store.h"
+#include "graph.h"
 
 struct gs {
 	struct ent_store ents;
 	struct store_sparse hp, draw;
-	struct store_dense pos, vel, select, coll; 
+	struct store_dense pos, vel, select, coll;
+	struct graph path;
 };
 
 struct gs_result {
@@ -28,8 +30,10 @@ enum result gs_insert_pos(struct gs *, struct ent, struct cpnt_pos);
 enum result gs_insert_vel(struct gs *, struct ent, struct cpnt_vel);
 enum result gs_insert_draw(struct gs *, struct ent, struct cpnt_draw);
 enum result gs_insert_select(struct gs *, struct ent, struct cpnt_select);
-enum result gs_insert_coll(struct gs *, struct ent, struct cpnt_coll);
+enum result gs_insert_coll(struct gs *, struct ent, enum cpnt_coll_shape);
 enum result gs_insert_hp(struct gs *gs, struct ent, struct cpnt_hp);
+
+void gs_remove_coll(struct gs *, struct ent);
 
 void gs_destroy(struct gs);
 
