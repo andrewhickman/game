@@ -51,11 +51,12 @@ struct bset_iter_result {
 }; 
  
 struct bset_iter {
-	struct bset set;
-	size_t index;
+	unsigned *buf;
+	size_t idx, len;
 	unsigned block;
-} bset_iter(struct bset const *);
+} bset_iter(struct bset const *), bset_iter_empty(void);
 
 struct bset_iter_result bset_iter_next(struct bset_iter *);
+bool bset_iter_finished(struct bset_iter const *);
 
 #endif

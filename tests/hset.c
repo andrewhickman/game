@@ -57,6 +57,8 @@ void test_hset_1()
 void test_hset_10()
 {
 	struct hset set;
+	struct hset_iter iter;
+	struct hset_iter_result result;
 	size_t i;
 
 	{
@@ -76,6 +78,26 @@ void test_hset_10()
 		}
 		ASSERT(cnt == 10);
 	}	
+
+	iter = hset_iter(&set);
+	for (i = 0; i != NUM_EDGES; ++i) {
+		result = hset_iter_next(&iter);
+		ASSERT(!result.finished);
+	}
+	result = hset_iter_next(&iter);
+	ASSERT(result.finished);
+	result = hset_iter_next(&iter);
+	ASSERT(result.finished);
+	result = hset_iter_next(&iter);
+	ASSERT(result.finished);
+	ASSERT(hset_iter_finished(&iter));
+
+	iter = hset_iter_empty();
+	result = hset_iter_next(&iter);
+	ASSERT(result.finished);
+	result = hset_iter_next(&iter);
+	ASSERT(result.finished);
+	ASSERT(hset_iter_finished(&iter));
 
 	hset_destroy(set);
 }

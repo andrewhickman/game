@@ -95,6 +95,50 @@ bool hset_contains(struct hset *hset, struct graph_edge edge)
 	return false;
 }
 
+struct hset_iter hset_iter(struct hset const *hset)
+{
+	struct hset_iter ret;
+
+	ret.ptr = hset->buf;
+	ret.end = hset->buf + hset->len;
+	ret.bkt.len = 0;
+
+	return ret;
+}
+
+struct hset_iter hset_iter_empty(void)
+{
+	struct hset_iter ret = { 0 };
+
+	return ret;
+}
+
+struct hset_iter_result hset_iter_next(struct hset_iter *iter)
+{
+	struct hset_iter_result ret;
+
+	while (!iter->bkt.len) {
+		if (iter->ptr == iter->end) {
+			ret.finished = true;
+			return ret;
+		}
+		iter->bkt = *iter->ptr++;
+	}
+	ret.finished = false;
+	if (iter->bkt.len-- == 1) {
+		ret.value = iter->bkt.data.edge;
+	} else {
+		ret.value = iter->bkt.data.buf[iter->bkt.len];
+	}
+
+	return ret;
+}
+
+bool hset_iter_finished(struct hset_iter const *iter)
+{
+	return iter->ptr == iter->end && !iter->bkt.len;
+}
+
 void hset_destroy(struct hset hset)
 {
 	size_t i;

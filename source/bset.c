@@ -220,25 +220,40 @@ struct bset_iter bset_iter(struct bset const *set)
 
 	ASSERT(!bset_is_null(set));
 
-	ret.set = *set;
-	ret.block = 0;
-	ret.index = 0;
+	ret.buf = set->buf;
+	ret.len = set->len;
+	ret.block = 0; 
+	ret.idx = 0;
+	return ret;
+}
+
+struct bset_iter bset_iter_empty(void)
+{
+	struct bset_iter ret = { 0 };
+
 	return ret;
 }
 
 struct bset_iter_result bset_iter_next(struct bset_iter *iter)
 {
 	struct bset_iter_result ret;
+
 	while (!iter->block) {
-		if (iter->index == iter->set.len) {
+		if (iter->idx == iter->len) {
 			ret.finished = true;
 			return ret;
 		}
-		iter->block = iter->set.buf[iter->index++];
+		iter->block = iter->buf[iter->idx++];
 	}
 	ret.finished = false;
-	ret.value = (iter->index - 1) * SET_BLOCK_BITS;
-	ret.value += util_trailing_zeros(iter->block & ~(iter->block - 1));
+	ret.value = (iter->idx - 1) * SET_BLOCK_BITS 
+		+ util_trailing_zeros(iter->block & ~(iter->block - 1));
 	iter->block &= iter->block - 1;
+
 	return ret;
+}
+
+bool bset_iter_finished(struct bset_iter const *iter)
+{
+	return iter->idx == iter->len && !iter->block;
 }

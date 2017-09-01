@@ -4,8 +4,8 @@
 #include "cpnt.h"
 #include "gs.h"
 
-enum result path_add_coll(struct gs *gs, unsigned id, struct cpnt_coll *coll);
-void path_rm_coll(struct gs *gs, unsigned id, struct cpnt_coll coll);
+enum result path_add_coll(struct gs *gs, struct cpnt_coll *coll);
+void path_rm_coll(struct gs *gs, struct cpnt_coll coll);
 
 struct path_result {
 	enum result result;

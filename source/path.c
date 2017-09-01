@@ -25,20 +25,18 @@ struct hset_result path_find_blocked(struct graph *graph, struct cpnt_coll *coll
 		buf[len++] = result.value;
 	}
 
-	SDL_Log("%d", len);
-
 	ret = hset_create(buf, len);
 	free(buf);
 	return ret;
 
-	free(buf);
 fail_buf:
 	LOG_ERROR("out of memory");
+	free(buf);
 	ret.result = RESULT_ERR;
 	return ret;
 }
 
-enum result path_add_coll(struct gs *gs, unsigned id, struct cpnt_coll *coll)
+enum result path_add_coll(struct gs *gs, struct cpnt_coll *coll)
 {
 	{
 		struct hset_result blocked = path_find_blocked(&gs->path, coll);
@@ -46,15 +44,16 @@ enum result path_add_coll(struct gs *gs, unsigned id, struct cpnt_coll *coll)
 		coll->blocked = blocked.value;
 	}
 
+
+
 	coll->nodes = bset_create_null();
 
 	return RESULT_OK;
 }
 
-void path_rm_coll(struct gs *gs, unsigned id, struct cpnt_coll coll)
+void path_rm_coll(struct gs *gs, struct cpnt_coll coll)
 {
 	(void)gs;
 
 	cpnt_coll_destroy(coll);
-	SDL_Log("removing entity %d from pathfinding", id);
 }

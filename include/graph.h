@@ -37,9 +37,9 @@ void graph_add_edge(struct graph *, unsigned a, unsigned b);
 void graph_rm_edge(struct graph *, unsigned a, unsigned b);
 
 struct graph_edge_iter {
-	struct bset_iter iter;
-	struct graph_node *buf;
+	struct graph_node const *buf;
 	size_t idx, cap;
+	struct bset_iter iter;
 } graph_edge_iter(struct graph const *);
 
 struct graph_edge_iter_result {

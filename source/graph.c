@@ -99,10 +99,10 @@ struct graph_edge_iter graph_edge_iter(struct graph const *graph)
 {
 	struct graph_edge_iter ret;
 
-	ret.iter.set = bset_create_null();
 	ret.buf = graph->buf;
-	ret.cap = graph->cap;
 	ret.idx = 0;
+	ret.cap = graph->cap;
+	ret.iter = bset_iter_empty();
 
 	return ret;
 }
@@ -111,27 +111,16 @@ struct graph_edge_iter_result graph_edge_iter_next(struct graph_edge_iter *iter)
 {
 	struct graph_edge_iter_result ret;
 
-	while (1) {
-		if (!bset_is_null(&iter->iter.set)) {
-			struct bset_iter_result result;
-			if (!(result = bset_iter_next(&iter->iter)).finished) {
-				if (result.value < iter->idx) {
-					ret.finished = false;
-					ret.value.lo = result.value;
-					ret.value.hi = iter->idx;
-					return ret;
-				}
-			}
-			++iter->idx;
-		}
+	while (bset_iter_finished(&iter->iter) 
+	       || (ret.value.lo = bset_iter_next(&iter->iter).value) 
+	       >= (ret.value.hi = iter->idx - 1)) {
 		if (iter->idx == iter->cap) {
-			iter->iter.set = bset_create_null();
 			ret.finished = true;
 			return ret;
-		} else {
-			iter->iter = bset_iter(&iter->buf[iter->idx].edges);
 		}
+		iter->iter = bset_iter(&iter->buf[iter->idx++].edges);
 	}
+	ret.finished = false;
 
 	return ret;
 }

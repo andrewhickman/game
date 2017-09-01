@@ -76,6 +76,14 @@ void test_bset_iter()
 	ASSERT(result.value == 1700);
 	result = bset_iter_next(&iter);
 	ASSERT(result.finished);
+	ASSERT(bset_iter_finished(&iter));
+
+	iter = bset_iter_empty();
+	result = bset_iter_next(&iter);
+	ASSERT(result.finished);
+	result = bset_iter_next(&iter);
+	ASSERT(result.finished);
+	ASSERT(bset_iter_finished(&iter));
 
 	bset_destroy(bset);
 }

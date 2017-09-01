@@ -204,7 +204,7 @@ enum result gs_insert_coll(struct gs *gs, struct ent ent, enum cpnt_coll_shape s
 		return RESULT_ERR;
 	}
 	space->shape = shape;
-	path_add_coll(gs, ent.id, space);
+	path_add_coll(gs, space);
 
 	return RESULT_OK;
 }
@@ -212,7 +212,7 @@ enum result gs_insert_coll(struct gs *gs, struct ent ent, enum cpnt_coll_shape s
 void gs_remove_coll(struct gs *gs, struct ent ent)
 {
 	struct cpnt_coll *coll = store_dense_get_mut(&gs->coll, ent.id, sizeof(*coll));
-	path_rm_coll(gs, ent.id, *coll);
+	path_rm_coll(gs, *coll);
 }
 
 void gs_destroy(struct gs gs)
