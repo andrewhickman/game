@@ -8,32 +8,32 @@
 #include "error.h"
 #include "resrc.h"
 #include "store.h"
-#include "graph.h"
+#include "path.h"
 
 struct gs {
-	struct ent_store ents;
-	struct store_sparse hp, draw;
-	struct store_dense pos, vel, select, coll;
-	struct graph path;
+	struct gs_world {
+		struct ent_store ents;
+		struct store_sparse hp, draw;
+		struct store_dense pos, vel, coll;
+	} cpnt;
+	struct path_map path;
 };
 
 struct gs_result {
-	enum result result;
-	struct gs value;
+	struct gs gs;
 	struct ent ents[4];
 } gs_create(void);
 
-struct ent_result gs_spawn(struct gs *);
+struct ent gs_spawn(struct gs *);
 void gs_kill(struct gs *, struct ent);
 
-enum result gs_insert_pos(struct gs *, struct ent, struct cpnt_pos);
-enum result gs_insert_vel(struct gs *, struct ent, struct cpnt_vel);
-enum result gs_insert_draw(struct gs *, struct ent, struct cpnt_draw);
-enum result gs_insert_select(struct gs *, struct ent, struct cpnt_select);
-enum result gs_insert_coll(struct gs *, struct ent, enum cpnt_coll_shape);
-enum result gs_insert_hp(struct gs *gs, struct ent, struct cpnt_hp);
+void gs_insert_pos(struct gs *, struct ent, struct cpnt_pos);
+void gs_insert_vel(struct gs *, struct ent, struct cpnt_vel);
+void gs_insert_draw(struct gs *, struct ent, struct cpnt_draw);
+void gs_insert_coll(struct gs *, struct ent, enum cpnt_coll_shape);
+void gs_insert_hp(struct gs *gs, struct ent, struct cpnt_hp);
 
-void gs_remove_coll(struct gs *, struct ent);
+void gs_remove_coll(struct gs *, struct ent, enum cpnt);
 
 void gs_destroy(struct gs);
 

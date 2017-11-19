@@ -72,3 +72,10 @@ size_t util_trailing_zeros(size_t n)
 	ASSERT(UNREACHABLE);
 	return 0;
 }
+
+size_t util_pop_lsb(unsigned *n)
+{
+	size_t ret = __builtin_ctz(*n);
+	*n &= *n - 1;
+	return ret;
+}

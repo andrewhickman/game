@@ -1,28 +1,16 @@
 #include "store.h"
 #include "util.h"
 
-#include <stdlib.h>
-
-struct store_sparse_result store_sparse_create(size_t len, size_t size)
+struct store_sparse store_sparse_create(size_t len, size_t size)
 {
-	struct store_sparse_result ret;
+	struct store_sparse ret;
 
-	ret.value.buf = malloc(len * size);
-	if (len && !ret.value.buf) goto fail_buf;
-	ret.value.len = len;
-	ret.value.cap = len;
-	ret.value.indices = malloc(len * sizeof(size_t));
-	if (len && !ret.value.indices) goto fail_indices;
-	ret.value.indices_len = len;
-	
-	ret.result = RESULT_OK;
-	return ret;
+	ret.buf = xmalloc(len * size);
+	ret.len = len;
+	ret.cap = len;
+	ret.idx = xmalloc(len * sizeof(size_t));
+	ret.idx_len = len;
 
-fail_indices:
-	free(ret.value.buf);
-fail_buf:
-	LOG_ERROR("out of memory");
-	ret.result = RESULT_ERR;
 	return ret;
 }
 
@@ -31,31 +19,17 @@ void *store_sparse_insert(
 	unsigned id, 
 	size_t size
 ) {
-	size_t idx;
 	if (store->len == store->cap) {
-		size_t cap = store->cap ? store->cap * 2 : 1;
-		void *buf = realloc(store->buf, cap * size);
-		if (!buf) {
-			LOG_ERROR("out of memory");
-			return NULL;
-		}
-		store->buf = buf;
-		store->cap = cap;
+		store->cap = store->cap ? store->cap * 2 : 1;
+		store->buf = xrealloc(store->buf, store->cap * size);
 	}
-	idx = store->len++;
 
-	if (id >= store->indices_len) {
-		size_t len = util_next_pow_2(id);
-		size_t *indices = realloc(store->indices, len * size);
-		if (!indices) {
-			LOG_ERROR("out of memory");
-			return NULL;
-		}
-		store->indices = indices;
-		store->indices_len = len;
+	if (id >= store->idx_len) {
+		store->idx_len = util_next_pow_2(id);
+		store->idx = xrealloc(store->idx, store->idx_len * size);
 	}
-	store->indices[id] = idx;
 
+	store->idx[id] = store->len++;
 	return store_sparse_get_mut(store, id, size);
 }
 
@@ -64,7 +38,7 @@ void const *store_sparse_get(
 	unsigned id, 
 	size_t size
 ) {
-	return (char *)store->buf + store->indices[id] * size;
+	return (char const *)store->buf + store->idx[id] * size;
 }
 
 void *store_sparse_get_mut(
@@ -72,48 +46,38 @@ void *store_sparse_get_mut(
 	unsigned id, 
 	size_t size
 ) {
-	return (char *)store->buf + store->indices[id] * size;
+	return (char *)store->buf + store->idx[id] * size;
 }
 
 void store_sparse_destroy(struct store_sparse store)
 {
-	free(store.buf);
-	free(store.indices);
+	xfree(store.buf);
+	xfree(store.idx);
 }
 
-struct store_dense_result store_dense_create(size_t len, size_t size)
+struct store_dense store_dense_create(size_t len, size_t size)
 {
-	struct store_dense_result ret;
+	struct store_dense ret;
 
-	ret.value.buf = malloc(len * size);
-	if (len && !ret.value.buf) {
-		LOG_ERROR("out of memory");
-		ret.result = RESULT_ERR;
-		return ret;
-	}
-	ret.value.len = len;
-	ret.result = RESULT_OK;
+	ret.buf = xmalloc(len * size);
+	ret.len = len;
+
 	return ret;
 }
 
 void *store_dense_insert(struct store_dense *store, unsigned id, size_t size)
 {
 	if (id >= store->len) {
-		size_t len = util_next_pow_2(id);
-		void *buf = realloc(store->buf, len * size);
-		if (!buf) {
-			LOG_ERROR("out of memory");
-			return NULL;
-		}
-		store->buf = buf;
-		store->len = len;
+		store->len = util_next_pow_2(id);
+		store->buf = xrealloc(store->buf, store->len * size);
 	}
+
 	return store_dense_get_mut(store, id, size);
 }
 
 void const *store_dense_get(struct store_dense const *store, unsigned id, size_t size)
 {
-	return (char *)store->buf + id * size;
+	return (char const *)store->buf + id * size;
 }
 
 void *store_dense_get_mut(struct store_dense *store, unsigned id, size_t size)
@@ -123,5 +87,5 @@ void *store_dense_get_mut(struct store_dense *store, unsigned id, size_t size)
 
 void store_dense_destroy(struct store_dense store)
 {
-	free(store.buf);
+	xfree(store.buf);
 }

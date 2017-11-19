@@ -1,8 +1,8 @@
 #include "graph.h"
-#include "bset.h"
+#include "set.h"
 #include "util.h"
-
-#include <stdlib.h>
+#include "path.h"
+#include "gs.h"
 
 struct graph graph_create(void)
 {
@@ -11,88 +11,215 @@ struct graph graph_create(void)
 	return ret;
 }
 
-struct vec graph_get_data(struct graph const *graph, unsigned node)
+struct vec graph_get(struct graph const *graph, unsigned node)
 {
 	return graph->buf[node].data;
 }
 
 bool graph_contains(struct graph const *graph, unsigned node)
 {
-	return node < graph->cap && !bset_is_null(&graph->buf[node].edges);
+	return node < graph->cap && graph->buf[node].state;
 }
 
-struct bset_iter graph_neighbours(struct graph const *graph, unsigned node)
+struct set_iter graph_neighbours(struct graph const *graph, unsigned node)
 {
 	ASSERT(graph_contains(graph, node));
-	return bset_iter(&graph->buf[node].edges);
+	return set_iter(&graph->buf[node].edges);
 }
 
 /* Reserve space for additional nodes. */
-enum result graph_reserve(struct graph *graph, size_t add)
+void graph_reserve(struct graph *graph, size_t add)
 {
-	struct graph_node *buf;
-	size_t i, cap = graph->len + add;
-	if (cap <= graph->cap) {
-		return RESULT_OK;
-	}
+	size_t cap = graph->len + add;
+
+	if (cap <= graph->cap) return;
+
 	cap = util_next_pow_2(cap - 1);
-	buf = realloc(graph->buf, cap * sizeof(*buf));
-	if (!buf) {
-		LOG_ERROR("out of memory");
-		return RESULT_ERR;
+	graph->buf = xrealloc(graph->buf, cap * sizeof(struct graph_node));
+
+	for (; graph->cap != cap; ++graph->cap) {
+		graph->buf[graph->cap].state = GRAPH_EMPTY;
 	}
-	for (i = graph->cap; i != cap; ++i) {
-		buf[i].edges = bset_create_null();
-	}
-	graph->buf = buf;
-	graph->cap = cap;
-	
-	return RESULT_OK;
 }
 
-unsigned graph_add_node(struct graph *graph, struct vec data)
+unsigned graph_add_node(struct graph *graph, struct set edges, struct vec data)
 {
-	for (; graph->start != graph->cap; ++graph->start) {
-		if (bset_is_null(&graph->buf[graph->start].edges)) {
-			graph->buf[graph->start].edges = bset_create_empty();
-			graph->buf[graph->start].data = data;
-			++graph->len;
-			return graph->start++;
-		}
+	struct set_iter iter;
+	unsigned i;
+
+	ASSERT(graph->start != graph->cap);
+	while (graph->buf[graph->start].state) {
+		++graph->start;
+		ASSERT(graph->start != graph->cap);
 	}
-	/* Not enough space reserved, error out. */
-	ASSERT(UNREACHABLE);
-	return 0;
+
+	iter = set_iter(&edges);
+	while (set_iter_next(&iter, &i)) {
+		ASSERT(graph_contains(graph, i));
+		set_insert(&graph->buf[i].edges, graph->start);
+	}
+
+	graph->buf[graph->start].state = GRAPH_FILLED;
+	graph->buf[graph->start].edges = edges;
+	graph->buf[graph->start].data = data;
+	++graph->len;
+	return graph->start++;
 }
 
 void graph_rm_node(struct graph *graph, unsigned node)
 {
-	struct bset edges = bset_take(&graph->buf[node].edges);
-	struct bset_iter iter = bset_iter(&edges);
-	struct bset_iter_result result;
+	struct set_iter iter = set_iter(&graph->buf[node].edges);
+	unsigned i;
 
-	while (!(result = bset_iter_next(&iter)).finished) {
-		bset_remove(&graph->buf[result.value].edges, node);
+	ASSERT(graph->buf[node].state);
+
+	while (set_iter_next(&iter, &i)) {
+		set_remove(&graph->buf[i].edges, node);
 	}
 
 	if (node < graph->start) graph->start = node;
 	--graph->len;
 
-	bset_destroy(edges);
+	set_destroy(graph->buf[node].edges);
+	graph->buf[node].state = GRAPH_EMPTY;
 }
 
-void graph_add_edge(struct graph *graph, unsigned a, unsigned b)
-{
-	ASSERT(graph_contains(graph, a) && graph_contains(graph, b));
-	bset_insert(&graph->buf[a].edges, b);
-	bset_insert(&graph->buf[b].edges, a);
+void graph_add_blocked(
+	struct graph *graph,
+	struct gs_world *gs,
+	struct cpnt_pos const *pos, 
+	struct cpnt_draw const *draw, 
+	struct cpnt_coll const *coll
+) {
+	size_t i, j, k;
+	for (i = 0; i != graph->cap; ++i) {
+		struct set *set;
+		struct vec a;
+
+		if (!graph->buf[i].state) continue;
+
+		set = &graph->buf[i].edges;
+		a = graph->buf[i].data;
+		for (j = 0; j != set->len; ++j) {
+			unsigned block = ~set->buf[j];
+
+			while (block) {
+				struct vec b;
+				unsigned mask = block - 1;
+
+				k = j * SET_BLOCK_BITS + __builtin_ctz(block);
+				if (graph_contains(graph, k) && i != k) {
+					b = graph->buf[k].data;
+					if (path_blocks(pos, draw, coll, a, b) 
+					    && path_los(gs, a, b)) 
+					{
+						set_insert(&graph->buf[k].edges, i);
+						set->buf[j] |= ~mask;
+					}
+				}
+				block &= mask;
+			}
+		}
+	}
 }
 
-void graph_rm_edge(struct graph *graph, unsigned a, unsigned b)
+void graph_rm_blocked(
+	struct graph *graph, 
+	struct cpnt_pos const *pos, 
+	struct cpnt_draw const *draw, 
+	struct cpnt_coll const *coll
+) {
+	size_t i, j, k;
+	for (i = 0; i != graph->cap; ++i) {
+		struct set *set;
+		struct vec a;
+
+		if (!graph->buf[i].state) continue;
+
+		set = &graph->buf[i].edges;
+		a = graph->buf[i].data;
+		for (j = 0; j != set->len; ++j) {
+			unsigned block = set->buf[j];
+
+			while (block) {
+				struct vec b;
+				unsigned mask = block - 1;
+
+				k = j * SET_BLOCK_BITS + __builtin_ctz(block);
+				ASSERT(graph_contains(graph, k));
+				ASSERT(i != k);
+				b = graph->buf[k].data;
+				if (path_blocks(pos, draw, coll, a, b)) {
+					set_remove(&graph->buf[k].edges, i);
+					set->buf[j] &= mask;
+				}
+				block &= mask;
+			}
+		}
+	}
+}
+
+void graph_add_path_data(struct graph *graph, unsigned node, unsigned from, unsigned cost)
 {
-	ASSERT(graph_contains(graph, a) && graph_contains(graph, b));
-	bset_insert(&graph->buf[a].edges, b);
-	bset_insert(&graph->buf[b].edges, a);
+	ASSERT(graph_contains(graph, node));
+	graph->buf[node].state = GRAPH_PM_DATA;
+	graph->buf[node].from = from;
+	graph->buf[node].cost = cost;
+}
+
+void graph_clear_path_data(struct graph *graph)
+{
+	unsigned i;
+	for (i = 0; i != graph->cap; ++i) {
+		if (graph->buf[i].state) graph->buf[i].state = GRAPH_FILLED;
+	}
+}
+
+double graph_cost(struct graph const *graph, unsigned a, unsigned b)
+{
+	return vec_dist(graph_get(graph, a), graph_get(graph, b));
+}
+
+struct graph_node_iter graph_node_iter(struct graph const *graph)
+{
+	struct graph_node_iter ret;
+
+	ret.buf = graph->buf;
+	ret.idx = 0;
+	ret.cap = graph->cap;
+
+	return ret;
+}
+
+struct graph_node_iter graph_node_iter_empty(void)
+{
+	struct graph_node_iter ret = { 0 };
+
+	return ret;
+}
+
+struct graph_node_iter_result graph_node_iter_next(struct graph_node_iter *iter)
+{
+	struct graph_node_iter_result ret;
+
+	while (iter->idx != iter->cap) {
+		if (iter->buf[iter->idx].state) {
+			ret.finished = false;
+			ret.node = iter->idx;
+			ret.data = &iter->buf[iter->idx];
+			++iter->idx;
+			return ret;
+		}
+		++iter->idx;
+	}
+
+	ret.finished = true;
+	return ret;
+}
+
+bool graph_edge_iter_finished(struct graph_node_iter const *iter)
+{
+	return iter->idx == iter->cap;
 }
 
 struct graph_edge_iter graph_edge_iter(struct graph const *graph)
@@ -102,34 +229,36 @@ struct graph_edge_iter graph_edge_iter(struct graph const *graph)
 	ret.buf = graph->buf;
 	ret.idx = 0;
 	ret.cap = graph->cap;
-	ret.iter = bset_iter_empty();
+	ret.iter = set_iter_empty();
 
 	return ret;
 }
 
-struct graph_edge_iter_result graph_edge_iter_next(struct graph_edge_iter *iter)
+bool graph_edge_iter_next(struct graph_edge_iter *iter, struct graph_edge *res)
 {
-	struct graph_edge_iter_result ret;
-
-	while (bset_iter_finished(&iter->iter) 
-	       || (ret.value.lo = bset_iter_next(&iter->iter).value) 
-	       >= (ret.value.hi = iter->idx - 1)) {
-		if (iter->idx == iter->cap) {
-			ret.finished = true;
-			return ret;
+	while (1) {
+		if (!set_iter_finished(&iter->iter)) {
+			unsigned i;
+			set_iter_next(&iter->iter, &i);
+			if (i < iter->idx - 1) {
+				res->lo = i;
+				res->hi = iter->idx - 1;
+				return true;
+			}
 		}
-		iter->iter = bset_iter(&iter->buf[iter->idx++].edges);
+		if (iter->idx == iter->cap) return false;
+		while (!iter->buf[iter->idx].state) {
+			if (++iter->idx == iter->cap) return false;
+		}
+		iter->iter = set_iter(&iter->buf[iter->idx++].edges);
 	}
-	ret.finished = false;
-
-	return ret;
 }
 
 void graph_destroy(struct graph graph)
 {
 	unsigned i;
 	for (i = 0; i != graph.cap; ++i) {
-		bset_destroy(graph.buf[i].edges);
+		if (graph.buf[i].state) set_destroy(graph.buf[i].edges);
 	}
-	free(graph.buf);
+	xfree(graph.buf);
 }

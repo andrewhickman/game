@@ -1,62 +1,54 @@
 #include "ent.h"
 
-#include <stdlib.h>
-
-struct ent_store_result ent_store_create(size_t len)
+bool ent_eq(struct ent l, struct ent r)
 {
-	struct ent_store_result ret;
+	return l.id == r.id && l.gen == r.gen;
+}
 
-	ret.value.buf = calloc(len, sizeof(*ret.value.buf));
-	if (len && !ret.value.buf) {
-		LOG_ERROR("out of memory");
-		ret.result = RESULT_ERR;
-		return ret;
-	}
-	ret.value.len = len;
-	ret.value.start = 0;
-	ret.result = RESULT_OK;
+struct ent_store ent_store_create(size_t len)
+{
+	struct ent_store ret;
+
+	ret.buf = xcalloc(len, sizeof(struct ent_data));
+	ret.len = len;
+	ret.start = 0;
+
 	return ret;
 }
 
-struct ent_result ent_store_spawn(struct ent_store *es)
+struct ent ent_store_spawn(struct ent_store *es)
 {
-	struct ent_result ret;
+	struct ent ret;
 
 	for (; es->start != es->len; ++es->start) {
 		if (es->buf[es->start].gen <= 0) goto exit;
 	}
 	/* Failed to find space, resize. */
 	{
-		size_t i, len = es->len ? 2 * es->len : 1;
-		struct ent_data *buf = realloc(es->buf, len * sizeof(*buf));
-		if (!buf) {
-			LOG_ERROR("out of memory");
-			ret.result = RESULT_ERR;
-			return ret;
+		size_t len = es->len ? 2 * es->len : 1;
+		es->buf = xrealloc(es->buf, len * sizeof(*es->buf));
+		for (; es->len != len; ++es->len) {
+			es->buf[es->len].cpnt = CPNT_NONE;
+			es->buf[es->len].gen = 0;
 		}
-		for (i = es->len; i != len; ++i) {
-			buf[i].cpnt = CPNT_NONE;
-			buf[i].gen = 0;
-		}
-		es->buf = buf;
-		es->len = len;
 	}
 exit:
-	ret.result = RESULT_OK;
-	ret.value.gen = es->buf[es->start].gen = 1 - es->buf[es->start].gen;
-	ret.value.id = es->start++;
+	ret.gen = es->buf[es->start].gen = 1 - es->buf[es->start].gen;
+	ret.id = es->start++;
 	return ret;
 }
 
-void ent_store_kill(struct ent_store *es, struct ent ent)
+enum cpnt ent_store_kill(struct ent_store *es, struct ent ent)
 {
 	if (ent_store_is_alive(es, ent)) {
-		es->buf[ent.id].cpnt = CPNT_NONE;
 		es->buf[ent.id].gen = -es->buf[ent.id].gen;
 		if (ent.id < es->start) {
 			es->start = ent.id;
 		}
+		return es->buf[ent.id].cpnt;
 	}
+
+	return CPNT_NONE;
 }
 
 void ent_store_add_cpnt(struct ent_store *es, struct ent ent, enum cpnt cpnt)
@@ -75,12 +67,13 @@ bool ent_store_rm_cpnt(struct ent_store *es, struct ent ent, enum cpnt cpnt)
 	}
 }
 
-enum cpnt ent_store_get_cpnt(struct ent_store const *es, struct ent ent)
+bool ent_store_test_cpnt(struct ent_store const *es, struct ent ent, enum cpnt cpnt)
 {
+	ASSERT(cpnt);
 	if (ent_store_is_alive(es, ent)) {
-		return es->buf[ent.id].cpnt;
+		return (es->buf[ent.id].cpnt & cpnt) == cpnt;
 	} else {
-		return CPNT_NONE;
+		return false;
 	}
 }
 
@@ -101,27 +94,23 @@ struct ent_store_iter ent_store_iter(struct ent_store const *es, enum cpnt cpnt)
 	return ret;
 }
 
-struct ent_store_iter_result ent_store_iter_next(struct ent_store_iter *iter)
+bool ent_store_iter_next(struct ent_store_iter *iter, struct ent_store_iter_result *res)
 {
-	struct ent_store_iter_result ret;
-
 	while (iter->id != iter->len) {
 		struct ent_data data = iter->buf[iter->id];
 		if ((data.cpnt & iter->cpnt) == iter->cpnt && data.gen > 0) {
-			ret.finished = false;
-			ret.ent.id = iter->id++;
-			ret.ent.gen = data.gen;
-			ret.cpnt = data.cpnt;
-			return ret;
+			res->ent.id = iter->id++;
+			res->ent.gen = data.gen;
+			res->cpnt = data.cpnt;
+			return true;
 		}
 		++iter->id;
 	}
 
-	ret.finished = true;
-	return ret;
+	return false;
 }
 
 void ent_store_destroy(struct ent_store es)
 {
-	free(es.buf);
+	xfree(es.buf);
 }

@@ -3,6 +3,8 @@
 
 #include "SDL2/SDL_log.h"
 
+#include <stddef.h>
+
 enum result {
 	RESULT_OK = 0, RESULT_ERR = 1
 };
@@ -15,5 +17,10 @@ void assert_impl(int val, char const *expr, char const *file, int line);
 #define LOG_CHAIN() SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,                 \
                                  "   called from %s:%d.", __FILE__, __LINE__)
 #define UNREACHABLE 0
+
+void *xmalloc(size_t);
+void *xcalloc(size_t, size_t);
+void *xrealloc(void *, size_t);
+void xfree(void *);
 
 #endif

@@ -21,8 +21,15 @@ struct ui {
 		SDL_Rect pos;
 		SDL_Texture *texture;
 	} map;
-	struct gs_find_result hovered, selected;
+	struct sys_find_result hovered, selected;
 	SDL_Rect camera;
+	struct vec mouse;
+	enum ui_path_state {
+		UI_PATH_NONE,
+		UI_PATH_START,
+	} path_state;
+	struct vec start;
+	struct cpnt_path path;
 };
 
 struct ui_result {
@@ -31,11 +38,13 @@ struct ui_result {
 	struct gs gs;
 } ui_create(SDL_Renderer *, int w, int h);
 
-enum result ui_draw(struct ui *, SDL_Renderer *, struct gs const *);
+enum result ui_draw(struct ui const *, SDL_Renderer *, struct gs const *);
 
 enum ui_status {
 	UI_CONTINUE, UI_QUIT, UI_ERR
 } ui_handle_event(struct ui *ui, SDL_Event *event, struct gs *);
+
+enum ui_status ui_update(struct ui *ui, struct gs *gs);
 
 void ui_resize(struct ui *, int w, int h);
 

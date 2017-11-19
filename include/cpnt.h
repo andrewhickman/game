@@ -4,8 +4,7 @@
 #include "SDL2/SDL.h"
 
 #include "vec.h"
-#include "bset.h"
-#include "hset.h"
+#include "set.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,9 +26,8 @@ enum cpnt {
 	CPNT_VEL = 1 << 1,
 	CPNT_DRAW = 1 << 2,
 	CPNT_COLL = 1 << 3,
-	CPNT_SELECT = 1 << 4,
-	CPNT_HP = 1 << 5,
-	CPNT_PATH = 1 << 6
+	CPNT_HP = 1 << 4,
+	CPNT_PATH = 1 << 5
 };
 
 /* Component data. */
@@ -44,24 +42,15 @@ struct cpnt_draw {
 };
 
 struct cpnt_coll {
-	struct hset blocked;
-	struct bset nodes;
+	struct set nodes;
 	unsigned offset;
 	enum cpnt_coll_shape {
-		CPNT_COLL_ELLIPSE,
+		CPNT_COLL_CIRCLE,
 		CPNT_COLL_RECT
 	} shape;
 };
 
 void cpnt_coll_destroy(struct cpnt_coll);
-
-struct cpnt_select {
-	enum cpnt_select_state {
-		CPNT_SELECT_NONE,	
-		CPNT_SELECT_HOVERED,
-		CPNT_SELECT_SELECTED
-	} state;
-};
 
 struct cpnt_hp {
 	int health;

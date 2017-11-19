@@ -20,5 +20,6 @@ SDL_Texture *util_render_image(
 
 size_t util_next_pow_2(size_t n);
 size_t util_trailing_zeros(size_t n);
+size_t util_pop_lsb(unsigned *n);
 
 #endif

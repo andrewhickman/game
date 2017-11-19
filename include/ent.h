@@ -17,6 +17,8 @@ struct ent {
 	int gen;
 };
 
+bool ent_eq(struct ent, struct ent);
+
 /* Keeps track of all entities in the world */
 struct ent_store {
 	struct ent_data {
@@ -27,22 +29,13 @@ struct ent_store {
 	} *buf;
 	size_t len;
 	unsigned start;
-};
-
-/* Create an entity store with room for `len` entities. */
-struct ent_store_result {
-	enum result result;
-	struct ent_store value;
 } ent_store_create(size_t len);
 
 /* Allocate a new entity. */
-struct ent_result {
-	enum result result;	
-	struct ent value;
-} ent_store_spawn(struct ent_store *);
+struct ent ent_store_spawn(struct ent_store *);
 
 /* Kill an entity, if it is alive. */
-void ent_store_kill(struct ent_store *, struct ent ent);
+enum cpnt ent_store_kill(struct ent_store *, struct ent ent);
 
 /* Add a component to an entity. Aborts if the entity is not alive. */
 void ent_store_add_cpnt(struct ent_store *, struct ent, enum cpnt);
@@ -50,7 +43,7 @@ void ent_store_add_cpnt(struct ent_store *, struct ent, enum cpnt);
 /* Remove a component from an entity, if it is still alive. */
 bool ent_store_rm_cpnt(struct ent_store *, struct ent, enum cpnt);
 
-enum cpnt ent_store_get_cpnt(struct ent_store const *, struct ent ent);
+bool ent_store_test_cpnt(struct ent_store const *, struct ent ent, enum cpnt);
 
 /* Check whether an entity is still alive. */
 bool ent_store_is_alive(struct ent_store const *, struct ent ent);
@@ -67,8 +60,9 @@ struct ent_store_iter {
 struct ent_store_iter_result {
 	struct ent ent;
 	enum cpnt cpnt;
-	bool finished;
-} ent_store_iter_next(struct ent_store_iter *);
+};
+
+bool ent_store_iter_next(struct ent_store_iter *, struct ent_store_iter_result *);
 
 /* Destroy the entity store */
 void ent_store_destroy(struct ent_store);

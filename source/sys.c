@@ -1,29 +1,32 @@
 #include "sys.h"
 
+#include "cpnt.h"
+#include "geom.h"
+
 void sys_physics(struct cpnt_pos *pos, struct cpnt_vel const *vel)
 {
 	pos->x += vel->x;
 	pos->y += vel->y;
 }
 
-bool sys_collide(enum cpnt_coll_shape shape, int x, int y, int w, int h)
+bool sys_collide(enum cpnt_coll_shape shape, struct vec pos, int w, int h)
 {
 	switch (shape) {
-	case CPNT_COLL_ELLIPSE:
-		x *= x, y *= y; 
-		w = (w * w) / 4, h = (h * h) / 4;
-		return x * h + y * w <= w * h;
+	case CPNT_COLL_CIRCLE:
+		return geom_circle_point_collide(pos, w / 2);
 	case CPNT_COLL_RECT:
-		return 0 <= x && x <= w && 0 <= y &&  y <= h;
+		pos.x += w / 2;
+		pos.y += h / 2;
+		return geom_rect_point_collide(pos, w, h);
 	}
 	ASSERT(UNREACHABLE);
 	return false;
 }
 
-enum result sys_draw_entity(
+enum result sys_draw(
 	struct cpnt_pos const *pos, 
 	struct cpnt_draw const *draw, 
-	struct cpnt_select const *select, /* optional */
+	enum sys_select_state select,
 	SDL_Renderer *renderer,
 	SDL_Rect const *cam
 ) {
@@ -37,236 +40,142 @@ enum result sys_draw_entity(
 
 	err = SDL_RenderCopy(renderer, draw->texture, NULL, &rect);
 	if (err) { LOG_ERROR(SDL_GetError()); return RESULT_ERR; }
-	if (select) {
-		switch (select->state) {
-		case CPNT_SELECT_SELECTED:
-			err = SDL_SetRenderDrawColor(renderer, 0, 255, 255, 0);
-			if (err) { 
-				LOG_ERROR(SDL_GetError()); 
-				return RESULT_ERR; 
-			}
-			err = SDL_RenderDrawRect(renderer, &rect);
-			if (err) { 
-				LOG_ERROR(SDL_GetError()); 
-				return RESULT_ERR; 
-			}
-			break;
-		case CPNT_SELECT_HOVERED:
-			err = SDL_SetRenderDrawColor(renderer, 0, 0, 255, 0);
-			if (err) { 
-				LOG_ERROR(SDL_GetError()); 
-				return RESULT_ERR; 
-			}
-			err = SDL_RenderDrawRect(renderer, &rect);
-			if (err) { 
-				LOG_ERROR(SDL_GetError()); 
-				return RESULT_ERR; 
-			}
-			break;
-		case CPNT_SELECT_NONE:
-			break;
+	switch (select) {
+	case SYS_SELECT_SELECTED:
+		err = SDL_SetRenderDrawColor(renderer, 0, 255, 255, 0);
+		if (err) { 
+			LOG_ERROR(SDL_GetError()); 
+			return RESULT_ERR; 
 		}
+		err = SDL_RenderDrawRect(renderer, &rect);
+		if (err) { 
+			LOG_ERROR(SDL_GetError()); 
+			return RESULT_ERR; 
+		}
+		break;
+	case SYS_SELECT_HOVERED:
+		err = SDL_SetRenderDrawColor(renderer, 0, 0, 255, 0);
+		if (err) { 
+			LOG_ERROR(SDL_GetError()); 
+			return RESULT_ERR; 
+		}
+		err = SDL_RenderDrawRect(renderer, &rect);
+		if (err) { 
+			LOG_ERROR(SDL_GetError()); 
+			return RESULT_ERR; 
+		}
+		break;
+	case SYS_SELECT_NONE:
+		break;
 	}
+
 	return RESULT_OK;
 }
 
 enum result sys_update(struct gs *gs)
 {
 	struct ent_store_iter iter;
-	struct ent_store_iter_result result;
+	struct ent_store_iter_result res;
 
-	iter = ent_store_iter(&gs->ents, CPNT_POS & CPNT_VEL);
-	while (!(result = ent_store_iter_next(&iter)).finished) {
+	iter = ent_store_iter(&gs->cpnt.ents, CPNT_POS | CPNT_VEL);
+	while (ent_store_iter_next(&iter, &res)) {
 		struct cpnt_pos *pos = 
-			store_dense_get_mut(&gs->pos, result.ent.id, sizeof(*pos));
+			store_dense_get_mut(&gs->cpnt.pos, res.ent.id, sizeof(*pos));
 		struct cpnt_vel const *vel = 
-			store_dense_get(&gs->vel, result.ent.id, sizeof(*vel));
+			store_dense_get(&gs->cpnt.vel, res.ent.id, sizeof(*vel));
 
 		sys_physics(pos, vel);
 	}
 
-	iter = ent_store_iter(&gs->ents, CPNT_HP);
-	while (!(result = ent_store_iter_next(&iter)).finished) {
+	iter = ent_store_iter(&gs->cpnt.ents, CPNT_HP);
+	while (ent_store_iter_next(&iter, &res)) {
 		struct cpnt_hp const *hp =
-			store_sparse_get(&gs->hp, result.ent.id, sizeof(*hp));
+			store_sparse_get(&gs->cpnt.hp, res.ent.id, sizeof(*hp));
 
 		if (hp->health <= 0) {
-			gs_kill(gs, result.ent);
+			gs_kill(gs, res.ent);
 		}
 	}
 
 	return RESULT_OK;
 }
 
-enum result sys_draw(struct gs const *gs, SDL_Renderer *renderer, SDL_Rect const *cam)
+struct ent_result sys_new_unit(struct gs *gs, struct vec pos, enum texture texture)
 {
-	struct ent_store_iter iter;
-	struct ent_store_iter_result result;
+	struct ent_result ent;
 
-	iter = ent_store_iter(&gs->ents, CPNT_POS & CPNT_DRAW);
-	while (!(result = ent_store_iter_next(&iter)).finished) {
-		struct cpnt_pos const *pos =
-			store_dense_get(&gs->pos, result.ent.id, sizeof(*pos));
-		struct cpnt_draw const *draw =
-			store_sparse_get(&gs->draw, result.ent.id, sizeof(*draw));
-		struct cpnt_select const *select = result.cpnt & CPNT_SELECT 
-			? store_dense_get(&gs->select, result.ent.id, sizeof(*select))
-			: NULL;
+	ent.value = gs_spawn(gs);
 
-		if (sys_draw_entity(pos, draw, select, renderer, cam) == RESULT_ERR) {
-			LOG_CHAIN();
-			return RESULT_ERR;
-		}
-	}
-
-	return RESULT_OK;
-}
-
-struct ent_result sys_new_unit(struct gs *gs, int x, int y, enum texture texture)
-{
-	struct ent_result ent = gs_spawn(gs);
-	if (ent.result == RESULT_ERR) {
-		LOG_CHAIN();
-		return ent;
-	}
-
-	{
-		struct cpnt_pos pos;
-		pos.x = x;
-		pos.y = y;
-		if (gs_insert_pos(gs, ent.value, pos) == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail;
-		}
-	}
+	gs_insert_pos(gs, ent.value, pos);
 
 	{
 		struct cpnt_vel vel;
 		vel.x = 0.0;
 		vel.y = 0.0;
-		if (gs_insert_vel(gs, ent.value, vel) == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail;
-		}
+		gs_insert_vel(gs, ent.value, vel);
 	}
 
 	{
 		struct cpnt_draw draw;
+		static int w = 10;
 		draw.texture = texture_get(texture);
 		if (SDL_QueryTexture(draw.texture, NULL, NULL, &draw.w, &draw.h)) {
 			LOG_ERROR(SDL_GetError());
 			goto fail;
 		}
-		if (gs_insert_draw(gs, ent.value, draw) == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail;
-		}
+		draw.w = draw.h = w += 5;
+		gs_insert_draw(gs, ent.value, draw);
 	}
 
-	{
-		if (gs_insert_coll(gs, ent.value, CPNT_COLL_ELLIPSE) == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail;
-		}
-	}
-
-	{
-		struct cpnt_select select;
-		select.state = CPNT_SELECT_NONE;
-		if (gs_insert_select(gs, ent.value, select) == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail;
-		}
-	}
+	gs_insert_coll(gs, ent.value, CPNT_COLL_CIRCLE);
 
 	{
 		struct cpnt_hp hp;
 		hp.health = 100;
-		if (gs_insert_hp(gs, ent.value, hp) == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail;
-		}
+		gs_insert_hp(gs, ent.value, hp);
 	}
 
+	ent.result = RESULT_OK;
 	return ent;
 
 fail:
-	ent_store_kill(&gs->ents, ent.value);
+	ent_store_kill(&gs->cpnt.ents, ent.value);
 	ent.result = RESULT_ERR;
 	return ent;
 }
 
-struct gs_find_result sys_find_hover(struct gs *gs, int x, int y)
+struct sys_find_result sys_find(struct gs *gs, struct vec click)
 {
-	struct ent_store_iter iter;
-	struct ent_store_iter_result result;
+	struct sys_find_result ret; 
 
-	struct gs_find_result ret; 
-	struct cpnt_select *last = NULL;
+	struct ent_store_iter iter;
+	struct ent_store_iter_result res;
+
+	iter = ent_store_iter(&gs->cpnt.ents, CPNT_POS | CPNT_DRAW | CPNT_COLL);
+	while (ent_store_iter_next(&iter, &res)) {
+		struct cpnt_pos const *pos = 
+			store_dense_get(&gs->cpnt.pos, res.ent.id, sizeof(*pos));
+		struct cpnt_draw const *draw = 
+			store_sparse_get(&gs->cpnt.draw, res.ent.id, sizeof(*draw));
+		struct cpnt_coll const *coll = 
+			store_dense_get_mut(&gs->cpnt.coll, res.ent.id, sizeof(*coll));
+
+		if (sys_collide(coll->shape, vec_sub(click, *pos), draw->w, draw->h)) {
+			ret.found = true;
+			ret.ent = res.ent;
+			return ret;
+		}
+	}
 
 	ret.found = false;
-	iter = ent_store_iter(&gs->ents, CPNT_POS | CPNT_DRAW | CPNT_COLL | CPNT_SELECT);
-	while (!(result = ent_store_iter_next(&iter)).finished) {
-		struct cpnt_pos const *pos = 
-			store_dense_get(&gs->pos, result.ent.id, sizeof(*pos));
-		struct cpnt_draw const *draw = 
-			store_sparse_get(&gs->draw, result.ent.id, sizeof(*draw));
-		struct cpnt_coll const *coll = 
-			store_dense_get_mut(&gs->coll, result.ent.id, sizeof(*coll));
-		struct cpnt_select *select =
-			store_dense_get_mut(&gs->select, result.ent.id, sizeof(*select));
-
-		if (select->state == CPNT_SELECT_HOVERED) {
-			select->state = CPNT_SELECT_NONE;
-		}
-		if (sys_collide(coll->shape, x - pos->x, y - pos->y, draw->w, draw->h)) {
-			ret.found = true;
-			ret.ent = result.ent;
-			last = select;
-		}
-	}
-	if (last && last->state != CPNT_SELECT_SELECTED) {
-		last->state = CPNT_SELECT_HOVERED;
-	}
-	return ret;
-}
-
-struct gs_find_result sys_find_select(struct gs *gs, int x, int y)
-{
-	struct ent_store_iter iter;
-	struct ent_store_iter_result result;
-
-	struct gs_find_result ret; 
-	struct cpnt_select *last = NULL;
-
-	ret.found = false;
-	iter = ent_store_iter(&gs->ents, CPNT_POS | CPNT_DRAW | CPNT_COLL | CPNT_SELECT);
-	while (!(result = ent_store_iter_next(&iter)).finished) {
-		struct cpnt_pos const *pos = 
-			store_dense_get(&gs->pos, result.ent.id, sizeof(*pos));
-		struct cpnt_draw const *draw = 
-			store_sparse_get(&gs->draw, result.ent.id, sizeof(*draw));
-		struct cpnt_coll const *coll = 
-			store_dense_get_mut(&gs->coll, result.ent.id, sizeof(*coll));
-		struct cpnt_select *select =
-			store_dense_get_mut(&gs->select, result.ent.id, sizeof(*select));
-
-		select->state = CPNT_SELECT_NONE;
-		if (sys_collide(coll->shape, x - pos->x, y - pos->y, draw->w, draw->h)) {
-			ret.found = true;
-			ret.ent = result.ent;
-			last = select;
-		}
-	}
-	if (last) last->state = CPNT_SELECT_SELECTED;
 	return ret;
 }
 
 void sys_nuke(struct gs *gs, struct ent ent, int dmg)
 {
-	if (ent_store_get_cpnt(&gs->ents, ent) & CPNT_HP) {
+	if (ent_store_test_cpnt(&gs->cpnt.ents, ent, CPNT_HP)) {
 		struct cpnt_hp *hp =
-			store_sparse_get_mut(&gs->hp, ent.id, sizeof(*hp));
+			store_sparse_get_mut(&gs->cpnt.hp, ent.id, sizeof(*hp));
 		hp->health -= dmg;
 	}
 }
@@ -274,17 +183,14 @@ void sys_nuke(struct gs *gs, struct ent ent, int dmg)
 struct sys_query_result sys_query(struct gs const *gs, struct ent ent)
 {
 	struct sys_query_result ret;
-	enum cpnt cpnt = ent_store_get_cpnt(&gs->ents, ent);
 
-	struct cpnt_draw const *draw = cpnt & CPNT_DRAW
-		? store_sparse_get(&gs->draw, ent.id, sizeof(*draw))
-		: NULL;
-	struct cpnt_hp const *hp = cpnt & CPNT_HP
-		? store_sparse_get(&gs->hp, ent.id, sizeof(*hp))
-		: NULL;
+	struct cpnt_hp const *hp;
+	struct cpnt_draw const *draw;
 
-	ret.found = draw && hp;
+	ret.found = ent_store_test_cpnt(&gs->cpnt.ents, ent, CPNT_DRAW | CPNT_HP);
 	if (ret.found) {
+		hp = store_sparse_get(&gs->cpnt.hp, ent.id, sizeof(*hp));
+		draw =  store_sparse_get(&gs->cpnt.draw, ent.id, sizeof(*draw));
 		ret.hp = *hp;
 		ret.draw = *draw;
 	}

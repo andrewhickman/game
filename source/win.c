@@ -95,6 +95,8 @@ enum win_status win_update(struct win *win)
 		}
 	}
 
+	ui_update(&win->ui, &win->gs);
+
 	if (SDL_SetRenderDrawColor(win->renderer, 0, 0, 0, 255)) {
 		LOG_ERROR(SDL_GetError());
 		return WIN_ERR;

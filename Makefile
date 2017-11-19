@@ -1,6 +1,6 @@
 OBJECTS := $(patsubst source/*.c, build/*.o, $(wildcard source/*.c))
 TESTS   := $(patsubst tests/*.c, build/test_*.o, $(wildcard tests/*.c))
-FLAGS   := -DSDL_MAIN_HANDLED -ansi -Wall -Wextra -pedantic -ggdb
+FLAGS   := -DSDL_MAIN_HANDLED -std=c11 -Wall -Wextra -pedantic -ggdb
 INCLUDE := -Iinclude -IC:\dev\include 
 
 all: $(OBJECTS)

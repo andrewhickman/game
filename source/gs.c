@@ -8,221 +8,117 @@ struct gs_result gs_create(void)
 {
 	struct gs_result ret;
 
-	{
-		struct ent_store_result ents = ent_store_create(0);
-		if (ents.result == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail_entities;
-		}
-		ret.value.ents = ents.value;
-	}
+	ret.gs.cpnt.ents = ent_store_create(4);
 
-	{
-		struct store_dense_result cpnt;
-		
-		cpnt = store_dense_create(0, sizeof(struct cpnt_pos));
-		if (cpnt.result == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail_pos;
-		}
-		ret.value.pos = cpnt.value;
-		
-		cpnt = store_dense_create(0, sizeof(struct cpnt_vel));
-		if (cpnt.result == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail_vel;
-		}
-		ret.value.vel = cpnt.value;
-		
-		cpnt = store_dense_create(0, sizeof(struct cpnt_select));
-		if (cpnt.result == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail_select;
-		}
-		ret.value.select = cpnt.value;
-		
-		cpnt = store_dense_create(0, sizeof(struct cpnt_coll));
-		if (cpnt.result == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail_coll;
-		}
-		ret.value.coll = cpnt.value;
-	}
+	ret.gs.cpnt.pos = store_dense_create(4, sizeof(struct cpnt_pos));
+	ret.gs.cpnt.vel = store_dense_create(4, sizeof(struct cpnt_vel));
+	ret.gs.cpnt.coll = store_dense_create(4, sizeof(struct cpnt_coll));
 
-	{
-		struct store_sparse_result cpnt;	
+	ret.gs.cpnt.draw = store_sparse_create(4, sizeof(struct cpnt_draw));
+	ret.gs.cpnt.hp = store_sparse_create(4, sizeof(struct cpnt_hp));
 
-		cpnt = store_sparse_create(0, sizeof(struct cpnt_draw));
-		if (cpnt.result == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail_draw;
-		}
-		ret.value.draw = cpnt.value;
-
-		cpnt = store_sparse_create(0, sizeof(struct cpnt_hp));
-		if (cpnt.result == RESULT_ERR) {
-			LOG_CHAIN();
-			goto fail_hp;
-		}
-		ret.value.hp = cpnt.value;
-	}
-
-	ret.value.path = graph_create();
+	ret.gs.path = path_map_create();
 
 	{
 		int i;
 		struct ent_result ent;
 
 		for (i = 0; i < 4; ++i) {
-			ent = sys_new_unit(&ret.value, (i + 2) * 100, 200, TEXTURE_UNIT);
-			if (ent.result == RESULT_ERR) {
-				LOG_CHAIN();
-				goto fail_ents;
-			}
+			struct vec pos = { (i + 2) * 100, 200 };
+
+			ent = sys_new_unit(&ret.gs, pos, TEXTURE_UNIT);
+			ASSERT(ent.result != RESULT_ERR);
 			ret.ents[i] = ent.value;
 		}
 	}
 
-	ret.result = RESULT_OK;
-	return ret;
-
-fail_ents:
-	graph_destroy(ret.value.path);
-	store_sparse_destroy(ret.value.hp);
-fail_hp:
-	store_sparse_destroy(ret.value.draw);
-fail_draw:
-	store_dense_destroy(ret.value.select);
-fail_select:
-	store_dense_destroy(ret.value.coll);
-fail_coll:
-	store_dense_destroy(ret.value.vel);
-fail_vel:
-	store_dense_destroy(ret.value.pos);
-fail_pos:
-	ent_store_destroy(ret.value.ents);
-fail_entities:
-	ret.result = RESULT_ERR;
 	return ret;
 }
 
-struct ent_result gs_spawn(struct gs *gs)
+struct ent gs_spawn(struct gs *gs)
 {
-	return ent_store_spawn(&gs->ents);
+	return ent_store_spawn(&gs->cpnt.ents);
 }
 
 void gs_kill(struct gs *gs, struct ent ent)
 {
-	enum cpnt cpnt = ent_store_get_cpnt(&gs->ents, ent);
-	if (cpnt & CPNT_COLL) gs_remove_coll(gs, ent);
-	ent_store_kill(&gs->ents, ent);
+	enum cpnt cpnt = ent_store_kill(&gs->cpnt.ents, ent);
+	if (cpnt & CPNT_COLL) gs_remove_coll(gs, ent, cpnt);
 }
 
-enum result gs_insert_pos(struct gs *gs, struct ent ent, struct cpnt_pos pos)
+void gs_insert_pos(struct gs *gs, struct ent ent, struct cpnt_pos pos)
 {
 	struct cpnt_pos *space;
 
-	ent_store_add_cpnt(&gs->ents, ent, CPNT_POS);
-	space = store_dense_insert(&gs->pos, ent.id, sizeof(struct cpnt_pos));
-	if (!space) {
-		LOG_CHAIN();
-		return RESULT_ERR;
-	}
+	space = store_dense_insert(&gs->cpnt.pos, ent.id, sizeof(struct cpnt_pos));
 	*space = pos;
-
-	return RESULT_OK;
+	ent_store_add_cpnt(&gs->cpnt.ents, ent, CPNT_POS);
 }
 
-enum result gs_insert_vel(struct gs *gs, struct ent ent, struct cpnt_vel vel)
+void gs_insert_vel(struct gs *gs, struct ent ent, struct cpnt_vel vel)
 {
 	struct cpnt_vel *space;
 
-	ent_store_add_cpnt(&gs->ents, ent, CPNT_VEL);
-	space = store_dense_insert(&gs->vel, ent.id, sizeof(struct cpnt_vel));
-	if (!space) {
-		LOG_CHAIN();
-		return RESULT_ERR;
-	}
+	space = store_dense_insert(&gs->cpnt.vel, ent.id, sizeof(struct cpnt_vel));
 	*space = vel;
-
-	return RESULT_OK;
+	ent_store_add_cpnt(&gs->cpnt.ents, ent, CPNT_VEL);
 }
 
-enum result gs_insert_draw(struct gs *gs, struct ent ent, struct cpnt_draw draw)
+void gs_insert_draw(struct gs *gs, struct ent ent, struct cpnt_draw draw)
 {
 	struct cpnt_draw *space;
 
-	ent_store_add_cpnt(&gs->ents, ent, CPNT_DRAW);
-	space = store_sparse_insert(&gs->draw, ent.id, sizeof(struct cpnt_draw));
-	if (!space) {
-		LOG_CHAIN();
-		return RESULT_ERR;
-	}
+	space = store_sparse_insert(&gs->cpnt.draw, ent.id, sizeof(struct cpnt_draw));
 	*space = draw;
-
-	return RESULT_OK;
+	ent_store_add_cpnt(&gs->cpnt.ents, ent, CPNT_DRAW);
 }
 
-enum result gs_insert_hp(struct gs *gs, struct ent ent, struct cpnt_hp hp)
+void gs_insert_hp(struct gs *gs, struct ent ent, struct cpnt_hp hp)
 {
 	struct cpnt_hp *space;
 
-	ent_store_add_cpnt(&gs->ents, ent, CPNT_HP);
-	space = store_sparse_insert(&gs->hp, ent.id, sizeof(struct cpnt_hp));
-	if (!space) {
-		LOG_CHAIN();
-		return RESULT_ERR;
-	}
+	space = store_sparse_insert(&gs->cpnt.hp, ent.id, sizeof(struct cpnt_hp));
 	*space = hp;
-
-	return RESULT_OK;
+	ent_store_add_cpnt(&gs->cpnt.ents, ent, CPNT_HP);
 }
 
-enum result gs_insert_select(struct gs *gs, struct ent ent, struct cpnt_select select)
+void gs_insert_coll(struct gs *gs, struct ent ent, enum cpnt_coll_shape shape)
 {
-	struct cpnt_select *space;
-
-	ent_store_add_cpnt(&gs->ents, ent, CPNT_SELECT);
-	space = store_dense_insert(&gs->select, ent.id, sizeof(struct cpnt_select));
-	if (!space) {
-		LOG_CHAIN();
-		return RESULT_ERR;
-	}
-	*space = select;
-
-	return RESULT_OK;
-}
-
-enum result gs_insert_coll(struct gs *gs, struct ent ent, enum cpnt_coll_shape shape)
-{
+	struct cpnt_pos const *pos;
+	struct cpnt_draw const *draw;
 	struct cpnt_coll *space;
 
-	ent_store_add_cpnt(&gs->ents, ent, CPNT_COLL);
-	space = store_dense_insert(&gs->coll, ent.id, sizeof(struct cpnt_coll));
-	if (!space) {
-		LOG_CHAIN();
-		return RESULT_ERR;
-	}
-	space->shape = shape;
-	path_add_coll(gs, space);
+	ASSERT(ent_store_test_cpnt(&gs->cpnt.ents, ent, CPNT_POS | CPNT_DRAW));
+	pos = store_dense_get(&gs->cpnt.pos, ent.id, sizeof(struct cpnt_pos));
+	draw = store_sparse_get(&gs->cpnt.draw, ent.id, sizeof(struct cpnt_draw));
 
-	return RESULT_OK;
+	space = store_dense_insert(&gs->cpnt.coll, ent.id, sizeof(struct cpnt_coll));
+	*space = path_add_coll(gs, pos, draw, shape);
+	ent_store_add_cpnt(&gs->cpnt.ents, ent, CPNT_COLL);
 }
 
-void gs_remove_coll(struct gs *gs, struct ent ent)
+void gs_remove_coll(struct gs *gs, struct ent ent, enum cpnt cpnt)
 {
-	struct cpnt_coll *coll = store_dense_get_mut(&gs->coll, ent.id, sizeof(*coll));
-	path_rm_coll(gs, *coll);
+	struct cpnt_pos const *pos;
+	struct cpnt_draw const *draw;
+	struct cpnt_coll *coll;
+
+	ASSERT((cpnt & CPNT_POS) && (cpnt & CPNT_DRAW) && (cpnt & CPNT_COLL));
+	pos = store_dense_get(&gs->cpnt.pos, ent.id, sizeof(struct cpnt_pos));
+	draw = store_sparse_get(&gs->cpnt.draw, ent.id, sizeof(struct cpnt_draw));
+	coll = store_dense_get_mut(&gs->cpnt.coll, ent.id, sizeof(*coll));
+
+	path_rm_coll(gs, pos, draw, *coll);
 }
 
 void gs_destroy(struct gs gs)
 {
 	unsigned id;
-	for (id = 0; id != gs.ents.len; ++id) {
-		if (gs.ents.buf[id].gen <= 0) continue;
-		if (gs.ents.buf[id].cpnt & CPNT_COLL) {
+	for (id = 0; id != gs.cpnt.ents.len; ++id) {
+		if (gs.cpnt.ents.buf[id].gen <= 0) continue;
+		if (gs.cpnt.ents.buf[id].cpnt & CPNT_COLL) {
 			struct cpnt_coll *coll = 
-				store_dense_get_mut(&gs.coll, id, sizeof(*coll));
+				store_dense_get_mut(&gs.cpnt.coll, id, sizeof(*coll));
 			cpnt_coll_destroy(*coll);
 		}
 		/*
@@ -234,12 +130,11 @@ void gs_destroy(struct gs gs)
 		*/
 	}
 
-	graph_destroy(gs.path);
-	store_sparse_destroy(gs.hp);
-	store_sparse_destroy(gs.draw);
-	store_dense_destroy(gs.select);
-	store_dense_destroy(gs.coll);
-	store_dense_destroy(gs.vel);
-	store_dense_destroy(gs.pos);
-	ent_store_destroy(gs.ents);
+	path_map_destroy(gs.path);
+	store_sparse_destroy(gs.cpnt.hp);
+	store_sparse_destroy(gs.cpnt.draw);
+	store_dense_destroy(gs.cpnt.coll);
+	store_dense_destroy(gs.cpnt.vel);
+	store_dense_destroy(gs.cpnt.pos);
+	ent_store_destroy(gs.cpnt.ents);
 }
